@@ -13,6 +13,7 @@ import org.eclipse.titan.executorapi.exception.JniExecutorIllegalArgumentExcepti
 
 /**
  * Contains the data describing a Host Controller.
+ * @author Arpad Lovassy
  */
 public final class HostController {
 	
