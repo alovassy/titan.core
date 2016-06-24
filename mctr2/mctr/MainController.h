@@ -1,10 +1,26 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Bene, Tamas
+ *   Czimbalmos, Eduard
+ *   Feher, Csaba
+ *   Forstner, Matyas
+ *   Gecse, Roland
+ *   Kovacs, Ferenc
+ *   Lovassy, Arpad
+ *   Raduly, Csaba
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Zalanyi, Balazs Andor
+ *
+ ******************************************************************************/
 //
 // Description:           Header file for MainController
 // Author:                Janos Zoltan Szabo
@@ -225,6 +241,31 @@ struct module_version_info {
 /** Possible reasons for waking up the MC thread from the main thread. */
 enum wakeup_reason_t { REASON_NOTHING, REASON_SHUTDOWN, REASON_MTC_KILL_TIMER };
 
+/** Structure for storing the settings needed to initialize the debugger of a
+  * newly connected HC */
+struct debugger_settings_struct {
+  char* on_switch;
+  char* output_type;
+  char* output_file;
+  char* error_behavior;
+  char* error_batch_file;
+  char* fail_behavior;
+  char* fail_batch_file;
+  char* global_batch_state;
+  char* global_batch_file;
+  int nof_breakpoints;
+  struct breakpoint_struct {
+    char* module;
+    char* line;
+    char* batch_file;
+  }* breakpoints;
+};
+
+struct debug_command_struct {
+  int command;
+  char* arguments;
+};
+
 /** The MainController class. The collection of all functions and data
  *   structures */
 class MainController {
@@ -295,6 +336,8 @@ class MainController {
   static int n_hosts;
   static host_struct **hosts;
   static char *config_str;
+  static debugger_settings_struct debugger_settings;
+  static debug_command_struct last_debug_command;
   static host_struct *add_new_host(unknown_connection *conn);
   static void close_hc_connection(host_struct *hc);
   static boolean is_hc_in_state(hc_state_enum checked_state);
@@ -313,6 +356,7 @@ class MainController {
   static int n_components, n_active_ptcs, max_ptcs;
   static component_struct **components;
   static component_struct *mtc, *system;
+  static const component_struct* debugger_active_tc;
   static component next_comp_ref, tc_first_comp_ref;
   static boolean any_component_done_requested, any_component_done_sent,
   all_component_done_requested, any_component_killed_requested,
@@ -398,6 +442,8 @@ class MainController {
   static struct sigaction new_action, old_action;
   static void register_termination_handlers();
   static void termination_handler(int signum);
+  
+  static void execute_batch_file(const char* file_name);
 
 public:
   static void error(const char *fmt, ...)
@@ -479,6 +525,8 @@ private:
   static void send_unmap(component_struct *tc,
     const char *local_port, const char *system_port);
   static void send_unmap_ack(component_struct *tc);
+  static void send_debug_command(int fd, int commandID, const char* arguments);
+  static void send_debug_setup(host_struct *hc);
 
   /* Messages to MTC */
   static void send_cancel_done_mtc(component component_reference,
@@ -548,6 +596,10 @@ private:
   static void process_mapped(component_struct *tc);
   static void process_unmap_req(component_struct *tc);
   static void process_unmapped(component_struct *tc);
+  static void process_debug_return_value(Text_Buf& text_buf, char* log_source,
+    int msg_end, bool from_mtc);
+  static void process_debug_broadcast_req(component_struct *tc, int commandID);
+  static void process_debug_batch(component_struct *tc);
 
   /* Incoming messages from MTC */
   static void process_testcase_started();
@@ -585,6 +637,8 @@ public:
   static void stop_after_testcase(boolean new_state);
   static void continue_testcase();
   static void stop_execution();
+  
+  static void debug_command(int commandID, char* arguments);
 
   static mc_state_enum get_state();
   static boolean get_stop_after_testcase();

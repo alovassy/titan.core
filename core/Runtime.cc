@@ -1,10 +1,27 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Delic, Adam
+ *   Feher, Csaba
+ *   Forstner, Matyas
+ *   Kovacs, Ferenc
+ *   Lovassy, Arpad
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Zalanyi, Balazs Andor
+ *   Pandi, Krisztian
+ *
+ ******************************************************************************/
 #if defined(LINUX) && ! defined(_GNU_SOURCE)
   // in order to get the prototype of non-standard strsignal()
 # define _GNU_SOURCE
@@ -265,6 +282,37 @@ const char *TTCN_Runtime::get_host_name()
   return host_name;
 }
 
+CHARSTRING TTCN_Runtime::get_host_address(const CHARSTRING& type)
+{
+  if (type != "Ipv4orIpv6" && type != "Ipv4" && type != "Ipv6") {
+      TTCN_error("The argument of hostid function must be Ipv4orIpv6 or Ipv4"
+        "or Ipv6. %s is not a valid argument.", (const char*)type);
+  }
+  
+  // Return empty if no host address could be retrieved
+  if (!TTCN_Communication::has_local_address()) {
+    return CHARSTRING("");
+  }
+  const IPAddress *address = TTCN_Communication::get_local_address();
+  
+  // Return empty if the type is not matching the address type
+  if (type == "Ipv4") {
+    const IPv4Address * ipv4 = dynamic_cast<const IPv4Address*>(address);
+    if (ipv4 == NULL) {
+      return CHARSTRING("");
+    }
+  }
+  if (type == "Ipv6") {
+#if defined(LINUX) || defined(CYGWIN17)
+    const IPv6Address * ipv6 = dynamic_cast<const IPv6Address*>(address);
+    if (ipv6 == NULL) 
+#endif // LINUX || CYGWIN17
+      return CHARSTRING("");
+  }
+  // Return the string representation of the address
+  return CHARSTRING(address->get_addr_str());
+}
+
 CHARSTRING TTCN_Runtime::get_testcase_id_macro()
 {
   if (in_controlpart()) TTCN_error("Macro %%testcaseId cannot be used from "
@@ -486,6 +534,9 @@ int TTCN_Runtime::ptc_main()
       ret_val = EXIT_FAILURE;
     }
     if (ret_val == EXIT_SUCCESS) {
+      if (ttcn3_debugger.is_activated()) {
+        ttcn3_debugger.open_output_file();
+      }
       try {
         do {
           TTCN_Snapshot::take_new(TRUE);
@@ -2113,6 +2164,12 @@ void TTCN_Runtime::setverdict_internal(verdicttype new_value,
       TTCN_Logger::log_setverdict(new_value, old_verdict, local_verdict);
     else TTCN_Logger::log_setverdict(new_value, old_verdict, local_verdict, reason, reason);
   }
+  if (new_value == FAIL) {
+    ttcn3_debugger.breakpoint_entry(TTCN3_Debugger::SBP_FAIL_VERDICT);
+  }
+  else if (new_value == ERROR) {
+    ttcn3_debugger.breakpoint_entry(TTCN3_Debugger::SBP_ERROR_VERDICT);
+  }
 }
 
 void TTCN_Runtime::set_begin_controlpart_command(const char *new_command)
@@ -2260,9 +2317,6 @@ void TTCN_Runtime::process_create_mtc()
       "state.");
     return;
   }
-  
-  // let the HC's TTCN-3 Profiler know of the MTC
-  ttcn3_prof.add_component(MTC_COMPREF);
 
   // clean Emergency log buffer before fork, to avoid duplication
   TTCN_Logger::ring_buffer_dump(false);
@@ -2283,6 +2337,8 @@ void TTCN_Runtime::process_create_mtc()
     TTCN_Logger::log_mtc_created(mtc_pid);
     add_component(MTC_COMPREF, mtc_pid);
     successful_process_creation();
+    // let the HC's TTCN-3 Profiler know of the MTC
+    ttcn3_prof.add_child_process(mtc_pid);
   } else {
     // fork() was successful, this code runs on the child process (MTC)
     // The inherited epoll fd has to be closed first, and then the mc fd
@@ -2308,9 +2364,6 @@ void TTCN_Runtime::process_create_ptc(component component_reference,
       "state.");
     return;
   }
-  
-  // let the HC's TTCN-3 Profiler know of this new PTC
-  ttcn3_prof.add_component(component_reference);
 
   // clean Emergency log buffer before fork, to avoid duplication
   TTCN_Logger::ring_buffer_dump(false);
@@ -2335,6 +2388,8 @@ void TTCN_Runtime::process_create_ptc(component component_reference,
     COMPONENT::register_component_name(component_reference,
       par_component_name);
     successful_process_creation();
+    // let the HC's TTCN-3 Profiler know of this new PTC
+    ttcn3_prof.add_child_process(ptc_pid);
   } else {
     // fork() was successful, this code runs on the child process (PTC)
     // The inherited epoll fd has to be closed first, and then the mc fd
@@ -2840,7 +2895,12 @@ void TTCN_Runtime::wait_terminated_processes()
   errno = 0;
   for ( ; ; ) {
     int statuscode;
+#ifdef __clang__
+    struct rusage r_usage = {{0,0},{0,0},{0},{0},{0},{0},{0},{0},{0},{0},{0},{0},{0},{0},{0},{0}};
+#else
     struct rusage r_usage = {{0,0},{0,0},0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+#endif
+
 #ifdef INTERIX
     pid_t child_pid = waitpid(-1, &statuscode, WNOHANG);
     getrusage(RUSAGE_CHILDREN, &r_usage);

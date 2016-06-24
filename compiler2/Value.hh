@@ -1,10 +1,29 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Beres, Szabolcs
+ *   Bibo, Zoltan
+ *   Cserveni, Akos
+ *   Delic, Adam
+ *   Forstner, Matyas
+ *   Gecse, Roland
+ *   Kovacs, Ferenc
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Tatarka, Gabor
+ *   Zalanyi, Balazs Andor
+ *
+ ******************************************************************************/
 #ifndef _Common_Value_HH
 #define _Common_Value_HH
 
@@ -239,8 +258,16 @@ namespace Common {
       OPTYPE_EXECUTE, // r1 [v2]
       OPTYPE_EXECUTE_REFD, // v1 t_list2 [v3]
 
-      OPTYPE_LOG2STR, // logagrs
+      OPTYPE_LOG2STR, // logargs
       OPTYPE_PROF_RUNNING, // -     99
+      
+      OPTYPE_ENCVALUE_UNICHAR, // ti1 [v2]
+      OPTYPE_DECVALUE_UNICHAR, // r1 r2 [v3]
+      
+      OPTYPE_ANY2UNISTR, // logarg, length = 1
+      OPTYPE_CHECKSTATE_ANY, // [r1] v2, port or any
+      OPTYPE_CHECKSTATE_ALL, // [r1] v2, port or all
+      OPTYPE_HOSTID, // [v1]
 
       NUMBER_OF_OPTYPES // must be last
     };
@@ -374,7 +401,7 @@ namespace Common {
      *  COMP_ALIVE_ALL, COMP_ALIVE_ANY, TMR_RUNNING_ANY, GETVERDICT,
      *  PROF_RUNNING */
     Value(operationtype_t p_optype);
-    /** Constructor used by V_EXPR "v1" */
+    /** Constructor used by V_EXPR "v1" or [v1] */
     Value(operationtype_t p_optype, Value *p_v1);
     /** Constructor used by V_EXPR "ti1": LENGTHOF, SIZEOF, VALUEOF, TTCN2STRING */
     Value(operationtype_t p_optype, TemplateInstance *p_ti1);
@@ -387,7 +414,7 @@ namespace Common {
     /** OPTYPE_EXECUTE_REFD */
     Value(operationtype_t p_optype, Value *p_v1,
       Ttcn::ParsedActualParameters *p_t_list2, Value *p_v3);
-    /** Constructor used by V_EXPR "r1 [v2]": EXECUTE */
+    /** Constructor used by V_EXPR "r1 [v2]": EXECUTE or [r1] v2 */
     Value(operationtype_t p_optype, Ttcn::Ref_base *p_r1, Value *v2);
     /** Constructor used by V_EXPR "r1 [v2] [v3] b4": COMP_CREATE */
     Value(operationtype_t p_optype, Ttcn::Ref_base *p_r1, Value *p_v2,
@@ -396,6 +423,8 @@ namespace Common {
     Value(operationtype_t p_optype, Value *p_v1, Value *p_v2);
     /** Constructor used by V_EXPR "v1 v2 v3" */
     Value(operationtype_t p_optype, Value *p_v1, Value *p_v2, Value *p_v3);
+    /** Constructor used by encvalue_unichar "ti1 [v2]" */
+    Value(operationtype_t p_optype, TemplateInstance *p_ti1, Value *p_v2);
     /** Constructor used by V_EXPR "ti1 v2 v3" */
     Value(operationtype_t p_optype, TemplateInstance *p_ti1, Value *p_v2, Value *p_v3);
     /** Constructor used by V_EXPR "ti1 t2 v3" */
@@ -417,6 +446,8 @@ namespace Common {
     Value(valuetype_t p_vt, verdict_t p_verdict);
     /** Constructor used by decode */
     Value(operationtype_t p_optype, Ttcn::Ref_base *p_r1, Ttcn::Ref_base *p_r2);
+    /** Constructor used by decvalue_unichar*/
+    Value(operationtype_t p_optype, Ttcn::Ref_base *p_r1, Ttcn::Ref_base *p_r2, Value *p_v3);
     virtual ~Value();
     virtual Value* clone() const;
     valuetype_t get_valuetype() const {return valuetype;}
@@ -610,7 +641,8 @@ namespace Common {
       Type::expected_value_t exp_val);
     void chk_expr_operand_encode(ReferenceChain *refch,
       Type::expected_value_t exp_val);
-    void chk_expr_operands_decode();
+    /** \a has two possible value: OPTYPE_DECODE | OPTYPE_DECVALUE_UNICHAR */
+    void chk_expr_operands_decode(operationtype_t p_optype);
     /** Checks whether \a this can be compared with omit value (i.e. \a this
      * should be a referenced value pointing to a optional record/set field. */
     void chk_expr_omit_comparison(Type::expected_value_t exp_val);
@@ -779,7 +811,7 @@ namespace Common {
      *  parameter list of parameterized value references
      *  (e.g. function calls) and in operands of valueof or match
      *  operations. */
-    char *rearrange_init_code(char *str);
+    char *rearrange_init_code(char *str, Common::Module* usage_mod);
     /**
      *  Generates a value for temporary use. Example:
      *
@@ -889,6 +921,16 @@ namespace Common {
     void generate_code_expr_encode(expression_struct *expr);
 
     void generate_code_expr_decode(expression_struct *expr);
+    
+    void generate_code_expr_encvalue_unichar(expression_struct *expr);
+    
+    void generate_code_expr_decvalue_unichar(expression_struct *expr);
+    
+    void generate_code_expr_checkstate(expression_struct *expr);
+    
+    void generate_code_expr_hostid(expression_struct *expr);
+    
+    char* generate_code_char_coding_check(expression_struct *expr, Value *v, const char *name);
 
     /** Helper function for \a generate_code_init(). It handles the
      *  union (CHOICE) values. */

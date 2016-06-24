@@ -1,10 +1,26 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Beres, Szabolcs
+ *   Delic, Adam
+ *   Feher, Csaba
+ *   Kovacs, Ferenc
+ *   Lovassy, Arpad
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Szalai, Gabor
+ *   Zalanyi, Balazs Andor
+ *   Pandi, Krisztian
+ *
+ ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,11 +80,13 @@ void signal_handler(int signum)
 static void usage(const char* program_name)
 {
   fprintf(stderr, "\n"
-    "usage: %s configuration_file\n"
+    "usage: %s [-h] [-b file] configuration_file\n"
     "   or  %s -l\n"
     "   or  %s -v\n"
     "\n"
     "OPTIONS:\n"
+    "	-b file:	run specified batch file at start (debugger must be activated)\n"
+    "	-h:		automatically halt execution at start (debugger must be activated)\n"
     "	-l:		list startable test cases and control parts\n"
     "	-v:		show version and module information\n",
     program_name, program_name, program_name);
@@ -89,12 +107,26 @@ int main(int argc, char *argv[])
 #endif
   errno = 0;
   int c, i, ret_val = EXIT_SUCCESS;
-  boolean lflag = FALSE, vflag = FALSE, errflag = FALSE;
+  boolean bflag = FALSE, hflag = FALSE, lflag = FALSE, vflag = FALSE, errflag = FALSE;
   const char *config_file = NULL;
   TTCN_Module *only_runnable = Module_List::single_control_part();
 
-  while ((c = getopt(argc, argv, "lv")) != -1) {
+  while ((c = getopt(argc, argv, "b:hlv")) != -1) {
     switch (c) {
+    case 'b':
+      if (bflag || lflag || vflag) errflag = TRUE; // duplicate or conflicting
+      else {
+        bflag = TRUE;
+        ttcn3_debugger.set_initial_batch_file(optarg);
+      }
+      break;
+    case 'h':
+      if (hflag || lflag || vflag) errflag = TRUE; // duplicate or conflicting
+      else {
+        hflag = TRUE;
+        ttcn3_debugger.set_halt_at_start();
+      }
+      break;
     case 'l':
       if (lflag || vflag) errflag = TRUE; // duplicate or conflicting
       else lflag = TRUE;
@@ -108,13 +140,15 @@ int main(int argc, char *argv[])
     }
   }
 
-  if (lflag || vflag) {
-    if (optind != argc) errflag = TRUE; // -l or -v and non-option arg
-  } else {
-    if (optind > argc - 1) { // no config file argument
-      errflag = (only_runnable == 0);
+  if (!errflag) {
+    if (lflag || vflag) {
+      if (optind != argc) errflag = TRUE; // -l or -v and non-option arg
+    } else {
+      if (optind > argc - 1) { // no config file argument
+        errflag = (only_runnable == 0);
+      }
+      else config_file = argv[optind];
     }
-    else config_file = argv[optind];
   }
 
   if (errflag) {
@@ -256,6 +290,9 @@ int main(int argc, char *argv[])
       Module_List::post_init_modules();
 
       for (i = 0; i < execute_list_len; i++) {
+        if (ttcn3_debugger.is_exiting()) {
+          break;
+        }
         if (execute_list[i].testcase_name == NULL)
           Module_List::execute_control(execute_list[i].module_name);
         else if (!strcmp(execute_list[i].testcase_name, "*"))

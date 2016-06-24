@@ -1,10 +1,33 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   
+ *   >
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Beres, Szabolcs
+ *   Delic, Adam
+ *   Forstner, Matyas
+ *   Koppany, Csaba
+ *   Kovacs, Ferenc
+ *   Kremer, Peter
+ *   Lovassy, Arpad
+ *   Pandi, Krisztian
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Szalay, Akos
+ *   Zalanyi, Balazs Andor
+ *   Pandi, Krisztian
+ *
+ ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -239,6 +262,7 @@ struct makefile_struct {
   boolean outparamboundness;
   boolean omit_in_value_list;
   boolean warnings_for_bad_variants;
+  boolean activate_debugger;
   boolean disable_predef_ext_folder;
   struct string_list* solspeclibraries; /* not owned */
   struct string_list* sol8speclibraries; /* not owned */
@@ -304,6 +328,7 @@ static void init_makefile_struct(struct makefile_struct *makefile)
   makefile->outparamboundness = FALSE;
   makefile->omit_in_value_list = FALSE;
   makefile->warnings_for_bad_variants = FALSE;
+  makefile->activate_debugger = FALSE;
   makefile->solspeclibraries = NULL;
   makefile->sol8speclibraries = NULL;
   makefile->linuxspeclibraries = NULL;
@@ -1728,8 +1753,9 @@ static void print_makefile(struct makefile_struct *makefile)
       "# The following make commands are available:\n"
       "# - make, make all      Builds the %s.\n"
       "# - make archive        Archives all source files.\n"
-      "# - make check          Checks the semantics of TTCN-3 and ASN.1 "
-      "modules.\n"
+      "# - make check          Checks the semantics of TTCN-3 and ASN.1"
+      "modules.\n"       
+      "# - make port           Generates port skeletons.\n"
       "%s" // clean:
       "%s" //clean-all
       "# - make compile        Translates TTCN-3 and ASN.1 modules to C++.\n"
@@ -1767,7 +1793,7 @@ static void print_makefile(struct makefile_struct *makefile)
             "#\n"
             "# Do NOT touch this line...\n"
             "#\n"
-            ".PHONY: all shared_objects executable library objects check clean dep archive", fp);
+            ".PHONY: all shared_objects executable library objects check port clean dep archive", fp);
       if (makefile->preprocess) fputs(" preprocess", fp);
       if (add_refd_prjs) {
         fprintf(fp, "\\\n referenced-all referenced-shared_objects referenced-executable referenced-library referenced-objects referenced-check"
@@ -1850,10 +1876,19 @@ static void print_makefile(struct makefile_struct *makefile)
       , titan_dir ? titan_dir : "");
     if (titan_dir) Free(titan_dir);
 
+    boolean cxx_free = FALSE;
     if (makefile->cxxcompiler) {
       cxx = makefile->cxxcompiler;
     } else {
+#ifdef __clang__
+      unsigned int
+        compiler_major = __clang_major__,
+        compiler_minor = __clang_minor__;
+      cxx = mprintf("clang++-%u.%u", compiler_major, compiler_minor);
+      cxx_free = TRUE;
+#else
       cxx = "g++";
+#endif
     }
 
     fprintf(fp, "\n# Your platform: (SOLARIS, SOLARIS8, LINUX, FREEBSD or "
@@ -1920,6 +1955,11 @@ static void print_makefile(struct makefile_struct *makefile)
         "CXXDEPFLAGS = -%s\n\n", strstr(cxx, "g++") ? "MM" : "xM1");
     }
 
+    if (cxx_free) {
+      Free((char*)cxx);
+      cxx = NULL;
+    }
+    
     if (makefile->preprocess || makefile->ttcn3_prep_includes ||  makefile->ttcn3_prep_defines) {
       fputs("# Flags for preprocessing TTCN-3 files:\n"
             "CPPFLAGS_TTCN3 =", fp);
@@ -1978,7 +2018,7 @@ static void print_makefile(struct makefile_struct *makefile)
           "AR = ar\n"
           "ARFLAGS = \n\n"
           "# Flags for the TTCN-3 and ASN.1 compiler:\n"
-          "COMPILER_FLAGS =%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n\n"
+          "COMPILER_FLAGS =%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n\n"
           "# Execution mode: (either ttcn3 or ttcn3-parallel)\n"
           "TTCN3_LIB = ttcn3%s%s%s\n\n"
 #ifdef LICENSE
@@ -2016,6 +2056,7 @@ static void print_makefile(struct makefile_struct *makefile)
           (makefile->outparamboundness ? " -Y" : ""),
           (makefile->omit_in_value_list ? " -M" : ""),
           (makefile->warnings_for_bad_variants ? " -E" : ""),
+          (makefile->activate_debugger ? " -n" : ""),
           (makefile->tcov_file_name ? makefile->tcov_file_name : ""),
           (makefile->profiled_file_list ? " -z $(PROFILED_FILE_LIST)" : ""),
           /* end of COMPILER FLAGS */
@@ -2905,6 +2946,9 @@ static void print_makefile(struct makefile_struct *makefile)
 #ifdef USAGE_STATS
     fputs(" -lresolv", fp);
 #endif
+#ifdef ADVANCED_DEBUGGER_UI
+    fputs(" -lcurses", fp);
+#endif
     if (makefile->solspeclibraries) {
       struct string_list* act_elem = makefile->solspeclibraries;
       while (act_elem) {
@@ -2919,6 +2963,9 @@ static void print_makefile(struct makefile_struct *makefile)
     fputs("SOLARIS8_LIBS = -lsocket -lnsl -lxml2", fp);
 #ifdef USAGE_STATS
     fputs(" -lresolv", fp);
+#endif
+#ifdef ADVANCED_DEBUGGER_UI
+    fputs(" -lcurses", fp);
 #endif
     if (makefile->sol8speclibraries) {
       struct string_list* act_elem = makefile->sol8speclibraries;
@@ -2935,6 +2982,9 @@ static void print_makefile(struct makefile_struct *makefile)
 #ifdef USAGE_STATS
     fputs(" -lpthread -lrt", fp);
 #endif
+#ifdef ADVANCED_DEBUGGER_UI
+    fputs(" -lncurses", fp);
+#endif
     if (makefile->linuxspeclibraries) {
       struct string_list* act_elem = makefile->linuxspeclibraries;
       while (act_elem) {
@@ -2947,6 +2997,9 @@ static void print_makefile(struct makefile_struct *makefile)
     fputs("\n", fp);
 
     fputs("FREEBSD_LIBS = -lxml2", fp);
+#ifdef ADVANCED_DEBUGGER_UI
+    fputs(" -lncurses", fp);
+#endif
     if (makefile->freebsdspeclibraries) {
       struct string_list* act_elem = makefile->freebsdspeclibraries;
       while (act_elem) {
@@ -2959,6 +3012,9 @@ static void print_makefile(struct makefile_struct *makefile)
     fputs("\n", fp);
 
     fputs("WIN32_LIBS = -lxml2", fp);
+#ifdef ADVANCED_DEBUGGER_UI
+    fputs(" -lncurses", fp);
+#endif
     if (makefile->win32speclibraries) {
       struct string_list* act_elem = makefile->win32speclibraries;
       while (act_elem) {
@@ -3215,7 +3271,7 @@ static void print_makefile(struct makefile_struct *makefile)
             if (act_ext_elem->str && hasExternalLibrary(act_ext_elem->str, makefile->project_name)) {
               fputs(" \\\n", fp);
               fprintf(fp, "\tlib%s.a", act_ext_elem->str);
-              ERROR("linking static 3d party or sytem library 'lib%s.a' to "
+              ERROR("linking static 3d party or system library 'lib%s.a' to "
                       "project library 'lib%s.a' is not supported ",
                       act_ext_elem->str, makefile->ets_name);
               exit(EXIT_FAILURE);
@@ -3312,6 +3368,29 @@ static void print_makefile(struct makefile_struct *makefile)
           "$(BASE_PREPROCESSED_TTCN3_MODULES) \\\n"
           "\t$(ASN1_MODULES) $(BASE_ASN1_MODULES)", fp);
         }
+        fprintf(fp, "\n\n"
+        "port: $(TTCN3_MODULES) $(BASE_TTCN3_MODULES) %s\\\n"
+        "\t$(PREPROCESSED_TTCN3_MODULES) $(BASE_PREPROCESSED_TTCN3_MODULES) "
+        "%s\n"
+        "\t$(TTCN3_DIR)/bin/compiler -t $(COMPILER_FLAGS) ",
+        makefile->linkingStrategy ? "$(BASE2_TTCN3_MODULES) ":"",
+        makefile->linkingStrategy ? "$(BASE2_PREPROCESSED_TTCN3_MODULES) ":"");
+        if (makefile->gnu_make) {
+          if (add_refd_prjs) // referenced-check cannot be compiled it is not a ttcn modul
+            fprintf(fp, "$(TTCN3_MODULES) $(BASE_TTCN3_MODULES) %s\\\n"
+                        "\t$(PREPROCESSED_TTCN3_MODULES) $(BASE_PREPROCESSED_TTCN3_MODULES) "
+                        "%s\n",
+                    makefile->linkingStrategy ? "$(BASE2_TTCN3_MODULES) ":"",
+                    makefile->linkingStrategy ? "$(BASE2_PREPROCESSED_TTCN3_MODULES) ":"");
+          else
+            fputs("$^", fp);
+        }
+        else {
+          fputs("\\\n"
+          "\t$(TTCN3_MODULES) $(BASE_TTCN3_MODULES) \\\n"
+          "\t$(PREPROCESSED_TTCN3_MODULES) "
+          "$(BASE_PREPROCESSED_TTCN3_MODULES) \n", fp);
+        }
         if (makefile->linkingStrategy && makefile->hierarchical) {
           fputs("\n\n"
           "update: $(BASE_TTCN3_MODULES) $(BASE_ASN1_MODULES) $(BASE_PREPROCESSED_TTCN3_MODULES) \\\n"
@@ -3383,6 +3462,22 @@ static void print_makefile(struct makefile_struct *makefile)
           fputs("\\\n"
           "\t$(TTCN3_MODULES) $(BASE_TTCN3_MODULES) \\\n"
           "\t$(ASN1_MODULES) $(BASE_ASN1_MODULES)", fp);
+        }
+        
+        fprintf(fp, "\n\n"
+        "port: $(TTCN3_MODULES) $(BASE_TTCN3_MODULES) %s\n"
+        "\t$(TTCN3_DIR)/bin/compiler -t $(COMPILER_FLAGS) ",
+        makefile->linkingStrategy ? "$(BASE2_TTCN3_MODULES) ":"");
+        if (makefile->gnu_make) {
+          if (add_refd_prjs) // referenced-check cannot be compiled it is not a ttcn modul
+            fprintf(fp, "$(TTCN3_MODULES) $(BASE_TTCN3_MODULES) %s\n",
+                    makefile->linkingStrategy ? "$(BASE2_TTCN3_MODULES) ":"");
+          else
+            fputs("$^", fp);
+        }
+        else {
+          fputs("\\\n"
+          "\t$(TTCN3_MODULES) $(BASE_TTCN3_MODULES) \n", fp);
         }
 
         if (makefile->linkingStrategy && makefile->hierarchical) {
@@ -3471,6 +3566,19 @@ static void print_makefile(struct makefile_struct *makefile)
               "\t$(TTCN3_MODULES) $(PREPROCESSED_TTCN3_MODULES) $(ASN1_MODULES)",
               fp);
       }
+      
+      fputs("\n\n", fp);
+      fprintf(fp, "port: $(TTCN3_MODULES) ");
+      if (makefile->preprocess) fputs("$(PREPROCESSED_TTCN3_MODULES) ", fp);
+      fputs("\n", fp);
+      fputs("\t$(TTCN3_DIR)/bin/compiler -t $(COMPILER_FLAGS) ", fp);
+      if (makefile->gnu_make) fputs("$^", fp);
+      else {
+        fputs("\\\n"
+              "\t$(TTCN3_MODULES) $(PREPROCESSED_TTCN3_MODULES)",
+              fp);
+      }
+      
       if (makefile->profiled_file_list) {
         fputs("\n\ncompile:: $(PROFILED_FILE_LIST)\n"
               "\ttouch $(TTCN3_MODULES) ", fp);
@@ -3551,7 +3659,7 @@ static void print_makefile(struct makefile_struct *makefile)
     if (makefile->gcc_dep) {
       fprintf(fp, " \n\n"
         "ifeq ($(findstring n,$(MAKEFLAGS)),)\n"
-        "ifeq ($(filter clean%s check compile archive diag%s,$(MAKECMDGOALS)),)\n"
+        "ifeq ($(filter clean%s check port compile archive diag%s,$(MAKECMDGOALS)),)\n"
         "-include $(DEPFILES)\n"
         "endif\n"
         "endif", 
@@ -3572,7 +3680,7 @@ static void print_makefile(struct makefile_struct *makefile)
     if (makefile->linkingStrategy) {
       fputs("\n\n"
         "archive:\n"
-        "\t@perl $(TTCN3_DIR)/bin/ttcn3_archive.pl\n\n", fp);
+        "\t@perl $(TTCN3_DIR)/bin/ttcn3_archive\n\n", fp);
     }
     else {
       fputs("\n\n"
@@ -3726,7 +3834,8 @@ static void generate_makefile(size_t n_arguments, char *arguments[],
   const char* cxxcompiler, const char* optlevel, const char* optflags, boolean disableber, boolean disableraw, boolean disabletext,
   boolean disablexer, boolean disablejson, boolean forcexerinasn, boolean defaultasomit, boolean gccmsgformat,
   boolean linenumbersonlymsg, boolean includesourceinfo, boolean addsourcelineinfo, boolean suppresswarnings,
-  boolean outparamboundness, boolean omit_in_value_list, boolean warnings_for_bad_variants, boolean disable_predef_ext_folder, struct string_list* solspeclibraries,
+  boolean outparamboundness, boolean omit_in_value_list, boolean warnings_for_bad_variants, boolean activate_debugger,
+  boolean disable_predef_ext_folder, struct string_list* solspeclibraries,
   struct string_list* sol8speclibraries, struct string_list* linuxspeclibraries, struct string_list* freebsdspeclibraries,
   struct string_list* win32speclibraries, const char* ttcn3preprocessor, struct string_list* linkerlibraries,
   struct string_list* additionalObjects, struct string_list* linkerlibsearchpath, char* generatorCommandOutput,
@@ -3778,6 +3887,7 @@ static void generate_makefile(size_t n_arguments, char *arguments[],
   makefile.outparamboundness = outparamboundness;
   makefile.omit_in_value_list = omit_in_value_list;
   makefile.warnings_for_bad_variants = warnings_for_bad_variants;
+  makefile.activate_debugger = activate_debugger;
   makefile.disable_predef_ext_folder = disable_predef_ext_folder;
   makefile.solspeclibraries = solspeclibraries;
   makefile.sol8speclibraries = sol8speclibraries;
@@ -3913,7 +4023,7 @@ static void generate_makefile(size_t n_arguments, char *arguments[],
 static void usage(void)
 {
   fprintf(stderr, "\n"
-    "usage: %s [-abc" C_flag "dDEfFglLmMprRstTVwWXZ] [-K file] [-z file ] [-P dir]"
+    "usage: %s [-abc" C_flag "dDEfFglLmMnprRstTVwWXZ] [-K file] [-z file ] [-P dir]"
     " [-U none|type] [-e ets_name] [-o dir|file]\n"
     "        [-t project_descriptor.tpd [-b buildconfig]]\n"
     "        [-O file] ... module_name ... testport_name ...\n"
@@ -3936,6 +4046,7 @@ static void usage(void)
     "	-L:		create makefile with library archive as the default target\n"
     "	-m:		always use makedepend for dependencies\n"
     "	-M:		allow 'omit' in template value lists (legacy behavior)\n"
+    "	-n:		activate debugger (generates extra code for debugging)\n"
     "	-o dir|file:	write the Makefile to the given directory or file\n"
     "	-O file:	add the given file to the Makefile as other file\n"
     "	-p:		generate Makefile with TTCN-3 preprocessing\n"
@@ -4003,7 +4114,7 @@ int main(int argc, char *argv[])
     gfflag = FALSE, lnflag = FALSE, isflag = FALSE, asflag = FALSE,
     swflag = FALSE, Vflag = FALSE, Dflag = FALSE, Wflag = FALSE,
     djflag = FALSE, Zflag = FALSE, Hflag = FALSE, Mflag = FALSE,
-    diflag = FALSE, zflag = FALSE, Eflag = FALSE;
+    diflag = FALSE, zflag = FALSE, Eflag = FALSE, nflag = FALSE;
   boolean error_flag = FALSE;
   char *output_file = NULL;
   char *ets_name = NULL;
@@ -4060,7 +4171,7 @@ int main(int argc, char *argv[])
   }
 
   for ( ; ; ) {
-    int c = getopt(argc, argv, "O:ab:c" C_flag "dDe:EfFgI:K:o:lLmMpP:rRst:TU:vVwWXYz:ZH");
+    int c = getopt(argc, argv, "O:ab:c" C_flag "dDe:EfFgI:K:o:lLmMnpP:rRst:TU:vVwWXYz:ZH");
     if (c == -1) break;
     switch (c) {
     case 'O':
@@ -4134,6 +4245,9 @@ int main(int argc, char *argv[])
       break;
     case 'M':
       SET_FLAG(M);
+      break;
+    case 'n':
+      SET_FLAG(n);
       break;
     case 'p':
       SET_FLAG(p);
@@ -4211,7 +4325,7 @@ int main(int argc, char *argv[])
     if ( aflag || bflag || cflag || Cflag || dflag || eflag || fflag || Fflag || gflag
       || mflag || oflag || lflag || pflag || Pflag || rflag || Rflag || sflag
       || tflag || Tflag || Vflag || wflag || Xflag || Kflag || Dflag || Wflag || Yflag
-      || Zflag || Hflag || Mflag || zflag || Eflag || n_other_files > 0 || n_search_paths > 0)
+      || Zflag || Hflag || Mflag || zflag || Eflag || nflag || n_other_files > 0 || n_search_paths > 0)
       error_flag = TRUE;
   }
 
@@ -4265,26 +4379,26 @@ int main(int argc, char *argv[])
     ERROR("Using the '-I' option requires use of the '-t' option.");
     error_flag = TRUE;
   }
-
+  
   for (size_t i = 0; i < n_search_paths; i++) {
-    boolean is_abs_path =
+    boolean is_abs_path = 
 #if defined WIN32 && defined MINGW
-        /* On native Windows the absolute path name shall begin with
-         * a drive letter, colon and backslash */
-        (((search_paths[i][0] < 'A' || search_paths[i][0] > 'Z') &&
-          (search_paths[i][0] < 'a' || search_paths[i][0] > 'z')) ||
-         search_paths[i][1] != ':' || search_paths[i][2] != '\\');
+	/* On native Windows the absolute path name shall begin with
+	 * a drive letter, colon and backslash */
+	(((search_paths[i][0] < 'A' || search_paths[i][0] > 'Z') &&
+	  (search_paths[i][0] < 'a' || search_paths[i][0] > 'z')) ||
+	 search_paths[i][1] != ':' || search_paths[i][2] != '\\');
 #else
-        /* On UNIX-like systems the absolute path name shall begin with
-         * a slash */
-        search_paths[i][0] != '/';
+	/* On UNIX-like systems the absolute path name shall begin with
+	 * a slash */
+	search_paths[i][0] != '/';
 #endif
     if (is_abs_path) {
       ERROR("The path after the -I flag must be an absolute path.");
       error_flag = TRUE;
     }
   }
-
+  
   if (error_flag) {
     usage();
     return EXIT_FAILURE;
@@ -4397,7 +4511,7 @@ int main(int argc, char *argv[])
       &Rflag, &lflag, &mflag, &Pflag, &Lflag, rflag, Fflag, Tflag, output_file, &abs_work_dir, sub_project_dirs, program_name, prj_graph_fp,
       create_symlink_list,ttcn3_prep_includes, ttcn3_prep_defines,ttcn3_prep_undefines, prep_includes, prep_defines, prep_undefines, &csflag, 
       &quflag, &dsflag, &cxxcompiler, &optlevel, &optflags, &dbflag, &drflag, &dtflag, &dxflag, &djflag, &fxflag, &doflag, &gfflag, &lnflag, &isflag,
-      &asflag, &swflag, &Yflag, &Mflag, &Eflag, &diflag, solspeclibraries, sol8speclibraries, linuxspeclibraries, freebsdspeclibraries, win32speclibraries, &ttcn3prep,
+      &asflag, &swflag, &Yflag, &Mflag, &Eflag, &nflag, &diflag, solspeclibraries, sol8speclibraries, linuxspeclibraries, freebsdspeclibraries, win32speclibraries, &ttcn3prep,
       linkerlibraries, additionalObjects, linkerlibsearchpath, Vflag, Dflag, &Zflag, &Hflag,
       &generatorCommandOutput, target_placement_list, Wflag, run_command_list, required_configs, &profiled_file_list, search_paths, n_search_paths);
 
@@ -4436,7 +4550,7 @@ int main(int argc, char *argv[])
       Rflag, lflag, mflag, Cflag, code_splitting_mode, tcov_file_name, profiled_file_list,
       Lflag, Zflag, Hflag, rflag ? sub_project_dirs : NULL, ttcn3_prep_includes,
       ttcn3_prep_defines, ttcn3_prep_undefines, prep_includes, prep_defines, prep_undefines, csflag, quflag, dsflag, cxxcompiler, optlevel, optflags, dbflag,
-      drflag, dtflag, dxflag, djflag, fxflag, doflag, gfflag, lnflag, isflag, asflag, swflag, Yflag, Mflag, Eflag, diflag, solspeclibraries,
+      drflag, dtflag, dxflag, djflag, fxflag, doflag, gfflag, lnflag, isflag, asflag, swflag, Yflag, Mflag, Eflag, nflag, diflag, solspeclibraries,
       sol8speclibraries, linuxspeclibraries, freebsdspeclibraries, win32speclibraries, ttcn3prep, linkerlibraries, additionalObjects,
       linkerlibsearchpath, generatorCommandOutput, target_placement_list);
   }

@@ -1,10 +1,22 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Beres, Szabolcs
+ *   Delic, Adam
+ *   Kovacs, Ferenc
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Janos Zoltan – initial implementation
+ *
+ ******************************************************************************/
 #ifndef ARRAY_HH
 #define ARRAY_HH
 
@@ -53,7 +65,7 @@ public:
   TIMER_ARRAY() { }
 
   ~TIMER_ARRAY() {
-    for (size_t i = 0; i < array_size; ++i) {
+    for (unsigned int i = 0; i < array_size; ++i) {
       Free(names[i]);
     }
   }
@@ -114,7 +126,7 @@ public:
   PORT_ARRAY() { }
 
   ~PORT_ARRAY() {
-    for (size_t i = 0; i < array_size; ++i) {
+    for (unsigned int i = 0; i < array_size; ++i) {
       Free(names[i]);
     }
   }
@@ -172,7 +184,9 @@ class VALUE_ARRAY : public Base_Type
 public:
   // This class use the compiler-generated copy constructor and
   // copy assignment.
-
+    
+  // User defined default constructor
+  VALUE_ARRAY() : array_elements(){};
   boolean operator==(const VALUE_ARRAY& other_value) const;
   inline boolean operator!=(const VALUE_ARRAY& other_value) const
     { return !(*this == other_value); }
@@ -427,7 +441,7 @@ Module_Param* VALUE_ARRAY<T_type,array_size,index_offset>::get_param
     return array_elements[param_index].get_param(param_name);
   }
   Vector<Module_Param*> values;
-  for (int i = 0; i < array_size; ++i) {
+  for (unsigned int i = 0; i < array_size; ++i) {
     values.push_back(array_elements[i].get_param(param_name));
   }
   Module_Param_Value_List* mp = new Module_Param_Value_List();
@@ -1598,7 +1612,7 @@ Module_Param* TEMPLATE_ARRAY<T_value_type,T_template_type,array_size,index_offse
     break;
   case SPECIFIC_VALUE: {
     Vector<Module_Param*> values;
-    for (int i = 0; i < array_size; ++i) {
+    for (unsigned int i = 0; i < array_size; ++i) {
       values.push_back(single_value.value_elements[i]->get_param(param_name));
     }
     mp = new Module_Param_Value_List();

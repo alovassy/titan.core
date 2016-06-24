@@ -1,10 +1,23 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Beres, Szabolcs
+ *   Delic, Adam
+ *   Feher, Csaba
+ *   Kovacs, Ferenc
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Janos Zoltan – initial implementation
+ *
+ ******************************************************************************/
 #include <set>
 #include <sstream>
 #include <string>
@@ -24,6 +37,7 @@
 #endif
 
 #include "../common/dbgnew.hh"
+#include "Debugger.hh"
 
 #include <stdio.h>
 #include <string.h>
@@ -972,6 +986,9 @@ void TTCN_Module::execute_all_testcases()
   boolean found = FALSE;
   for (testcase_list_item *list_iter = testcase_head; list_iter != NULL;
     list_iter = list_iter->next_testcase) {
+    if (ttcn3_debugger.is_exiting()) {
+      break;
+    }
     if (!list_iter->is_pard) {
       list_iter->testcase_function(FALSE, 0.0);
       found = TRUE;

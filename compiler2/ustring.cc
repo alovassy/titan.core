@@ -1,10 +1,21 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Kovacs, Ferenc
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Zalanyi, Balazs Andor
+ *
+ ******************************************************************************/
 #include <stdio.h>
 #include <string.h>
 
@@ -173,6 +184,29 @@ ustring::ustring(const string& s)
       val_ptr->uchars_ptr[i].row = 0;
       val_ptr->uchars_ptr[i].cell = src[i];
     }
+  }
+}
+
+ustring::ustring(const char** uid, const int n) {
+  //Init the size for characters
+  init_struct(n);
+  for (size_t i = 0; i < val_ptr->n_uchars; ++i) {
+    const char * uidchar = uid[i];
+    size_t offset = 1; //Always starts with u or U
+    offset = uidchar[1] == '+' ? offset + 1 : offset; //Optional '+'
+    string chunk = string(uidchar + offset);
+    //Convert hex to int and get value
+    Common::int_val_t * val = Common::hex2int(chunk);
+    Common::Int int_val = val->get_val();
+
+    //Fill in the quadruple
+    val_ptr->uchars_ptr[i].group = (int_val >> 24) & 0xFF;
+    val_ptr->uchars_ptr[i].plane = (int_val >> 16) & 0xFF;
+    val_ptr->uchars_ptr[i].row   = (int_val >> 8) & 0xFF;
+    val_ptr->uchars_ptr[i].cell  = int_val & 0xFF;
+    
+    //Free pointer
+    Free(val);
   }
 }
 

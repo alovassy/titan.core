@@ -1,10 +1,18 @@
-###############################################################################
-# Copyright (c) 2000-2015 Ericsson Telecom AB
+##############################################################################
+# Copyright (c) 2000-2016 Ericsson Telecom AB
 # All rights reserved. This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v1.0
 # which accompanies this distribution, and is available at
 # http://www.eclipse.org/legal/epl-v10.html
-###############################################################################
+#
+# Contributors:
+#   Balasko, Jeno
+#   Kovacs, Ferenc
+#   Raduly, Csaba
+#   Szabo, Bence Janos
+#   Zalanyi, Balazs Andor
+#
+##############################################################################
 TOPDIR := ..
 include $(TOPDIR)/Makefile.regression
 
@@ -13,7 +21,8 @@ include $(TOPDIR)/Makefile.regression
 
 TTCN3_LIB = ttcn3$(RT2_SUFFIX)$(DYNAMIC_SUFFIX)
 
-TTCN3_MODULES = TucharstrOper.ttcn cstr_content.ttcn Common.ttcn UTF8Testcases.ttcn UTF16Testcases.ttcn UTF32Testcases.ttcn Base64Testcases.ttcn
+TTCN3_MODULES = TucharstrOper.ttcn cstr_content.ttcn Common.ttcn UTF8Testcases.ttcn UTF16Testcases.ttcn UTF32Testcases.ttcn \
+                Base64Testcases.ttcn EncDecvalueUnichar.ttcn Any2Unistr.ttcn
 
 GENERATED_SOURCES = $(TTCN3_MODULES:.ttcn=.cc)
 GENERATED_HEADERS = $(GENERATED_SOURCES:.cc=.hh)

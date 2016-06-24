@@ -1,10 +1,19 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   >
+ *   Balasko, Jeno
+ *   Beres, Szabolcs
+ *   Godar, Marton
+ *   Raduly, Csaba
+ *   Szabo, Bence Janos
+ *
+ ******************************************************************************/
 #include "SimpleType.hh"
 
 #include "GeneralFunctions.hh"
@@ -37,6 +46,7 @@ SimpleType::SimpleType(XMLParser * a_parser, TTCN3Module * a_module, ConstructTy
 , typeSubsGroup(NULL)
 , addedToTypeSubstitution(false)
 , block(not_set)
+, inList(false)
 , parent(NULL) {
 }
 
@@ -61,6 +71,7 @@ SimpleType::SimpleType(const SimpleType& other)
 , typeSubsGroup(other.typeSubsGroup)
 , addedToTypeSubstitution(other.addedToTypeSubstitution)
 , block(other.block)
+, inList(other.inList)
 , parent(NULL) {
   length.parent = this;
   pattern.parent = this;
@@ -80,10 +91,11 @@ void SimpleType::loadWithValues() {
     case n_list:
       type.upload(atts.itemType);
       setReference(atts.itemType);
-      minOccurs = 0;
-      maxOccurs = ULLONG_MAX;
+      setMinOccurs(0);
+      setMaxOccurs(ULLONG_MAX);
       addVariant(V_list);
       mode = listMode;
+      inList = true;
       break;
     case n_union:
     { // generating complextype from simpletype
@@ -123,9 +135,9 @@ void SimpleType::loadWithValues() {
       break;
     }
     case n_length:
-      if (mode == listMode) {
-        minOccurs = strtoull(atts.value.c_str(), NULL, 0);
-        maxOccurs = strtoull(atts.value.c_str(), NULL, 0);
+       if (inList && (xsdtype != n_NOTSET || mode == restrictionAfterListMode)) {
+        setMinOccurs(strtoull(atts.value.c_str(), NULL, 0));
+        setMaxOccurs(strtoull(atts.value.c_str(), NULL, 0));
         break;
       }
       length.facet_minLength = strtoull(atts.value.c_str(), NULL, 0);
@@ -133,16 +145,16 @@ void SimpleType::loadWithValues() {
       length.modified = true;
       break;
     case n_minLength:
-      if (mode == listMode) {
-        minOccurs = strtoull(atts.value.c_str(), NULL, 0);
+      if (inList && (xsdtype != n_NOTSET || mode == restrictionAfterListMode)) {
+        setMinOccurs(strtoull(atts.value.c_str(), NULL, 0));
         break;
       }
       length.facet_minLength = strtoull(atts.value.c_str(), NULL, 0);
       length.modified = true;
       break;
     case n_maxLength:
-      if (mode == listMode) {
-        maxOccurs = strtoull(atts.value.c_str(), NULL, 0);
+      if (inList && (xsdtype != n_NOTSET || mode == restrictionAfterListMode)) {
+        setMaxOccurs(strtoull(atts.value.c_str(), NULL, 0));
         break;
       }
       length.facet_maxLength = strtoull(atts.value.c_str(), NULL, 0);
@@ -582,7 +594,7 @@ void SimpleType::referenceForST(SimpleType * found_ST) {
   if (construct == c_element)
     return;
 
-  if (mode == listMode)
+  if (mode == listMode || mode == restrictionAfterListMode)
     return;
 
   if (!found_ST->builtInBase.empty()) {
@@ -596,7 +608,7 @@ void SimpleType::referenceForST(SimpleType * found_ST) {
   value.applyReference(found_ST->value);
 
   mode = found_ST->mode;
-  if (found_ST->mode != listMode) {
+  if (found_ST->mode != listMode && found_ST->mode != restrictionAfterListMode) {
     type.upload(found_ST->getType().convertedValue);
   }
 }
@@ -762,7 +774,7 @@ void SimpleType::finalModification() {
     addVariant(V_onlyValueHidden, Mstring("\"text 'true' as '1'\""));
   }
 
-  isOptional = isOptional || (minOccurs == 0 && maxOccurs == 0);
+  isOptional = isOptional || (getMinOccurs() == 0 && getMaxOccurs() == 0);
 
   // If the type name is the same as the identifier then we have to prefix it 
   // with the module identifier.
@@ -868,7 +880,7 @@ LengthType::LengthType(SimpleType * a_simpleType)
 , upper(ULLONG_MAX) {
 }
 
-void LengthType::applyReference(const LengthType & other) {
+void LengthType::applyReference(const LengthType & other) { 
   if (!modified) modified = other.modified;
   if (other.facet_minLength > facet_minLength) facet_minLength = other.facet_minLength;
   if (other.facet_maxLength < facet_maxLength) facet_maxLength = other.facet_maxLength;
@@ -894,6 +906,7 @@ void LengthType::applyFacets() // only for string types and list types without Q
     }
     case SimpleType::extensionMode:
     case SimpleType::listMode:
+    case SimpleType::restrictionAfterListMode:
       lower = facet_minLength;
       upper = facet_maxLength;
       break;
@@ -1140,8 +1153,11 @@ EnumerationType::EnumerationType(SimpleType * a_simpleType)
 
 void EnumerationType::applyReference(const EnumerationType & other) {
   if (!modified) modified = other.modified;
-  for (List<Mstring>::iterator facet = other.facets.begin(); facet; facet = facet->Next) {
-    facets.push_back(facet->Data);
+  if ((other.parent->getXsdtype() == n_NOTSET && parent->getMode() != SimpleType::restrictionMode)
+        || parent->getXsdtype() == n_simpleType) {
+    for (List<Mstring>::iterator facet = other.facets.begin(); facet; facet = facet->Next) {
+      facets.push_back(facet->Data);
+    }
   }
 }
 
@@ -1591,3 +1607,4 @@ void ValueType::printToFile(FILE * file) const {
 
   fputc(')', file);
 }
+

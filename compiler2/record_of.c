@@ -1,10 +1,26 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Beres, Szabolcs
+ *   Delic, Adam
+ *   Forstner, Matyas
+ *   Kovacs, Ferenc
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Szalai, Gabor
+ *   Zalanyi, Balazs Andor
+ *
+ ******************************************************************************/
 #include "../common/memory.h"
 #include "datatypes.h"
 #include "record_of.h"
@@ -620,6 +636,10 @@ void defRecordOfClass1(const struct_of_def *sdef, output_struct *output)
     "        Module_Param* const curr = mp->get_elem(i);\n"
     "        if (curr->get_type()!=Module_Param::MP_NotUsed) {\n"
     "          (*this)[i].set_param(*curr);\n"
+    "          if (!(*this)[i].is_bound()) {\n"
+    "            delete val_ptr->value_elements[i];\n"
+    "            val_ptr->value_elements[i] = NULL;\n"
+    "          }\n"
     "        }\n"
     "      }\n"
     "      break;\n"
@@ -627,6 +647,10 @@ void defRecordOfClass1(const struct_of_def *sdef, output_struct *output)
     "      for (size_t i=0; i<mp->get_size(); ++i) {\n"
     "        Module_Param* const curr = mp->get_elem(i);\n"
     "        (*this)[curr->get_id()->get_index()].set_param(*curr);\n"
+    "        if (!(*this)[curr->get_id()->get_index()].is_bound()) {\n"
+    "          delete val_ptr->value_elements[curr->get_id()->get_index()];\n"
+    "          val_ptr->value_elements[curr->get_id()->get_index()] = NULL;\n"
+    "        }\n"
     "      }\n"
     "      break;\n"
     "    default:\n"

@@ -1,10 +1,17 @@
-###############################################################################
-# Copyright (c) 2000-2015 Ericsson Telecom AB
+##############################################################################
+# Copyright (c) 2000-2016 Ericsson Telecom AB
 # All rights reserved. This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v1.0
 # which accompanies this distribution, and is available at
 # http://www.eclipse.org/legal/epl-v10.html
-###############################################################################
+#
+# Contributors:
+#   
+#   Baji, Laszlo
+#   Balasko, Jeno
+#   Raduly, Csaba
+#
+##############################################################################
 TOPDIR := ../..
 include   ../../Makefile.regression
 
@@ -114,11 +121,11 @@ TARGET = POtest$(EXESUFFIX)
 # Do not modify these unless you know what you are doing...
 # Platform specific additional libraries:
 #
-SOLARIS_LIBS  = -lsocket -lnsl -lxml2 -lresolv
-SOLARIS8_LIBS = -lsocket -lnsl -lxml2 -lresolv
-LINUX_LIBS = -lxml2 -lpthread -lrt
-FREEBSD_LIBS = -lxml2 -liconv
-WIN32_LIBS = -lxml2 -liconv
+SOLARIS_LIBS  = -lsocket -lnsl -lxml2 -lresolv -lcurses
+SOLARIS8_LIBS = -lsocket -lnsl -lxml2 -lresolv -lcurses
+LINUX_LIBS = -lxml2 -lpthread -lrt -lncurses
+FREEBSD_LIBS = -lxml2 -liconv -lncurses
+WIN32_LIBS = -lxml2 -liconv -lncurses
 
 #
 # Rules for building the executable...

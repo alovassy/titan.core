@@ -1,23 +1,30 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Raduly, Csaba
+ *   Szabo, Janos Zoltan – initial implementation
+ *
+ ******************************************************************************/
 #include "dbgnew.hh"
 #include <stddef.h>
+#include <new>
 
 #undef new
 
 static void *dummy = NULL;
 
-void *operator new(size_t size) throw ()
+void *operator new(size_t size) throw (std::bad_alloc)
 {
     return Malloc(size);
 }
 
-void *operator new[](size_t size) throw ()
+void *operator new[](size_t size) throw (std::bad_alloc)
 {
     if (size == 0) return &dummy;
     else return Malloc(size);

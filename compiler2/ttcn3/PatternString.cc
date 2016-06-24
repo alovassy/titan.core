@@ -1,10 +1,21 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Delic, Adam
+ *   Forstner, Matyas
+ *   Raduly, Csaba
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Zalanyi, Balazs Andor
+ *
+ ******************************************************************************/
 #include "PatternString.hh"
 #include "../../common/pattern.hh"
 #include "../CompilerError.hh"
@@ -268,6 +279,14 @@ namespace Ttcn {
     ps_elem_t *last_elem = get_last_elem();
     if (last_elem) *last_elem->str += p_str;
     else elems.add(new ps_elem_t(ps_elem_t::PSE_STR, p_str));
+  }
+  
+  void PatternString::addStringUSI(char **usi_str, const size_t size)
+  {
+    ustring s = ustring((const char**)usi_str, size);
+    ps_elem_t *last_elem = get_last_elem();
+    if (last_elem) *last_elem->str += s.get_stringRepr_for_pattern().c_str();
+    else elems.add(new ps_elem_t(ps_elem_t::PSE_STR, s.get_stringRepr_for_pattern()));
   }
 
   void PatternString::addRef(Ttcn::Reference *p_ref)

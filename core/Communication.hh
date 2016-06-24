@@ -1,10 +1,24 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Beres, Szabolcs
+ *   Feher, Csaba
+ *   Forstner, Matyas
+ *   Kovacs, Ferenc
+ *   Raduly, Csaba
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Zalanyi, Balazs Andor
+ *
+ ******************************************************************************/
 #ifndef COMMUNICATION_HH
 #define COMMUNICATION_HH
 
@@ -31,6 +45,7 @@ class TTCN_Communication {
 
 public:
   static const NetworkFamily& get_network_family() { return hcnh.get_family(); }
+  static bool has_local_address() { return local_addr_set; }
   static void set_local_address(const char *host_name);
   static const IPAddress *get_local_address();
   static void set_mc_address(const char *host_name,
@@ -56,6 +71,7 @@ public:
 
   static void process_all_messages_hc();
   static void process_all_messages_tc();
+  static void process_debug_messages();
 
   static void send_version();
   static void send_configure_ack();
@@ -131,7 +147,11 @@ public:
   static void send_stopped_killed(verdicttype final_verdict,
     const char* reason = "");
   static void send_killed(verdicttype final_verdict, const char* reason = "");
-
+  
+  static void send_debug_return_value(int return_type, const char* message);
+  static void send_debug_halt_req();
+  static void send_debug_continue_req();
+  static void send_debug_batch(const char* batch_file);
 
   /** @brief Send a log message to the MC.
 
@@ -202,6 +222,8 @@ private:
 
   static void process_error();
   static void process_unsupported_message(int msg_type, int msg_end);
+  
+  static void process_debug_command();
   /** @} */
 };
 

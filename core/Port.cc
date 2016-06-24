@@ -1,10 +1,26 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Delic, Adam
+ *   Feher, Csaba
+ *   Forstner, Matyas
+ *   Kovacs, Ferenc
+ *   Pandi, Krisztian
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Szalai, Gabor
+ *   Tatarka, Gabor
+ *
+ ******************************************************************************/
 #include "Port.hh"
 
 #include <string.h>
@@ -2410,4 +2426,43 @@ void PORT::unmap_port(const char *component_port, const char *system_port)
   port_ptr->unmap(system_port);
   if (!TTCN_Runtime::is_single())
     TTCN_Communication::send_unmapped(component_port, system_port);
+}
+
+bool PORT::check_port_state(const CHARSTRING& type) const
+{
+  if (type == "Started") {
+    return is_started;
+  } else if (type == "Halted") {
+    return is_halted;
+  } else if (type == "Stopped") {
+    return (!is_started && !is_halted);
+  } else if (type == "Connected") {
+    return connection_list_head != NULL;
+  } else if (type ==  "Mapped") {
+    return n_system_mappings > 0;
+  } else if (type == "Linked") {
+    return (connection_list_head != NULL || n_system_mappings > 0);
+  }
+  TTCN_error("%s is not an allowed parameter of checkstate().", (const char*)type);
+}
+
+bool PORT::any_check_port_state(const CHARSTRING& type)
+{
+  bool result = false;
+  for (PORT *port = list_head; port != NULL; port = port->list_next) {
+    result = port->check_port_state(type);
+    if (result) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool PORT::all_check_port_state(const CHARSTRING& type)
+{
+  bool result = true;
+  for (PORT *port = list_head; port != NULL && result; port = port->list_next) {
+    result = port->check_port_state(type);
+  }
+  return result;
 }

@@ -1,10 +1,18 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Ormandi, Matyas
+ *   Szalai, Gabor
+ *
+ ******************************************************************************/
 #include "usage_stats.hh"
 
 #ifdef MINGW
@@ -109,7 +117,7 @@ std::string gethostnameFullyQualified ( void )
     }
 
     if( !domain[0] && NULL != (fp=fopen("/etc/defaultdomain","r")) ) {
-      fgets(domain, sizeof(domain), fp);
+      (void)fgets(domain, sizeof(domain), fp);
       fclose(fp);
     }
 
@@ -230,7 +238,7 @@ ssize_t process_http(int sockfd, const char *host, const char *page, const char 
      "Content-length: %lu\r\n\r\n"
      "%s", page, host, (unsigned long)strlen(poststr), poststr);
 
-  write(sockfd, sendline, strlen(sendline));
+  (void)write(sockfd, sendline, strlen(sendline));
   /*while ((n = read(sockfd, recvline, MAXLINE)) > 0) {
     recvline[n] = '\0';
     printf("%s", recvline);

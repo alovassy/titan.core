@@ -1,10 +1,23 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Beres, Szabolcs
+ *   Delic, Adam
+ *   Forstner, Matyas
+ *   Kovacs, Ferenc
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Tatarka, Gabor
+ *
+ ******************************************************************************/
 #include <string.h>
 
 #include "../common/memory.h"
@@ -128,8 +141,9 @@ void COMPONENT::set_param(Module_Param& param) {
   if (param.get_type() == Module_Param::MP_Reference) {
     mp = param.get_referenced_param();
   }
-  if (Ttcn_String_Parsing::happening()) {
-    // accept all component values in case it's a string2ttcn operation
+  if (Ttcn_String_Parsing::happening() || Debugger_Value_Parsing::happening()) {
+    // accept all component values in case it's a string2ttcn operation or
+    // an overwrite operation through the debugger
     switch (mp->get_type()) {
     case Module_Param::MP_Integer:
       component_value = (component)mp->get_integer()->get_val();

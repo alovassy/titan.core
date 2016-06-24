@@ -1,10 +1,23 @@
-###############################################################################
-# Copyright (c) 2000-2015 Ericsson Telecom AB
+##############################################################################
+# Copyright (c) 2000-2016 Ericsson Telecom AB
 # All rights reserved. This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v1.0
 # which accompanies this distribution, and is available at
 # http://www.eclipse.org/legal/epl-v10.html
-###############################################################################
+#
+# Contributors:
+#   
+#   Balasko, Jeno
+#   Delic, Adam
+#   Hanko, Matyas
+#   Kovacs, Ferenc
+#   Lovassy, Arpad
+#   Ormandi, Matyas
+#   Raduly, Csaba
+#   Szabados, Kristof
+#   Szabo, Janos Zoltan – initial implementation
+#
+##############################################################################
 # uncomment this line to use alternative runtime (TITAN_RUNTIME_2)
 # RT2 = yes
 
@@ -37,7 +50,7 @@ PLATFORM = SOLARIS
 endif
 
 # Your C++ compiler:
-CXX = g++
+#CXX = g++
 
 # Flags for the C++ preprocessor (and makedepend as well):
 CPPFLAGS = -D$(PLATFORM) -I$(TTCN3_DIR)/include -I$(XMLDIR)/include/libxml2
@@ -106,11 +119,11 @@ endif
 #
 # Do not modify these unless you know what you are doing...
 #
-SOLARIS_LIBS = -lxnet -L$(XMLDIR)/lib -lxml2 -lresolv
-SOLARIS8_LIBS = -lxnet -L$(XMLDIR)/lib -lxml2 -lresolv -lnsl -lsocket
-LINUX_LIBS = -L$(XMLDIR)/lib -lxml2 -lpthread -lrt
-FREEBSD_LIBS = -L$(XMLDIR)/lib -lxml2
-WIN32_LIBS = -L$(XMLDIR)/lib -lxml2
+SOLARIS_LIBS = -lxnet -L$(XMLDIR)/lib -lxml2 -lresolv -lcurses
+SOLARIS8_LIBS = -lxnet -L$(XMLDIR)/lib -lxml2 -lresolv -lnsl -lsocket -lcurses
+LINUX_LIBS = -L$(XMLDIR)/lib -lxml2 -lpthread -lrt -lncurses
+FREEBSD_LIBS = -L$(XMLDIR)/lib -lxml2 -lncurses
+WIN32_LIBS = -L$(XMLDIR)/lib -lxml2 -lncurses
 
 #
 # Rules for building the executable...

@@ -1,10 +1,19 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Beres, Szabolcs
+ *   Godar, Marton
+ *   Ormandi, Matyas
+ *   Raduly, Csaba
+ *   Szabo, Bence Janos
+ *
+ ******************************************************************************/
 #include "ComplexType.hh"
 
 #include "GeneralFunctions.hh"
@@ -288,6 +297,12 @@ void ComplexType::loadWithValues() {
         complexfields.push_back(f);
         basefield = f;
         actfield = f;
+        
+        // If it is a restriction of a list, then no new basefield will be 
+        // present, to we apply the references to the parent.
+        if(parent != NULL && parent->inList) {
+          parent->applyReference(*f, true);
+        }
       } else if (cmode == CT_complextype_mode) {
         setReference(atts.base);
         xsdtype = n_restriction;
@@ -571,6 +586,15 @@ void ComplexType::loadWithValues() {
       }
       break;
     case n_list:
+      if (parent != NULL && parent->basefield == this) {
+        parent->inList = true;
+        parent->SimpleType::loadWithValues();
+        parent->basefield = NULL;
+        setInvisible();
+      } else if(parent != NULL) {
+        SimpleType::loadWithValues();
+      }
+      break;
     case n_length:
     case n_minLength:
     case n_maxLength:
@@ -605,8 +629,10 @@ void ComplexType::modifyValues() {
   if (xsdtype == n_sequence) {
     skipback = skipback - 1;
   }
+  
 
-  if ((xsdtype == n_element || 
+  if ( parent != NULL && 
+      (xsdtype == n_element || 
        xsdtype == n_complexType || 
        xsdtype == n_complexContent || 
        xsdtype == n_all || 
@@ -617,11 +643,10 @@ void ComplexType::modifyValues() {
        xsdtype == n_attributeGroup || 
        xsdtype == n_extension || 
        xsdtype == n_restriction || 
-       xsdtype == n_simpleType || 
+       (xsdtype == n_simpleType && !inList) || 
        xsdtype == n_simpleContent ||
        (xsdtype == n_sequence && skipback < 0)
-      ) 
-      && parent != NULL) {
+      )) {
     if (!tagNames.empty() && tagNames.back() == parser->getParentTagName()) {
       if (nillable && tagNames.back() == n_element) {
         parent->modifyValues();
@@ -631,6 +656,9 @@ void ComplexType::modifyValues() {
       parent->actfield = parent;
       parent->lastType = xsdtype;
     }
+  }
+  if (xsdtype == n_simpleType) {
+    inList = false;
   }
 }
 
@@ -706,15 +734,16 @@ void ComplexType::applyReference(const SimpleType & other, const bool on_attribu
   type.convertedValue = other.getType().convertedValue;
   type.originalValueWoPrefix = other.getType().convertedValue.getValueWithoutPrefix(':');
 
-  if (other.getMinOccurs() > minOccurs || other.getMaxOccurs() < maxOccurs) {
+  if (other.getMinOccurs() > getMinOccurs() ||
+      other.getMaxOccurs() < getMaxOccurs()) {
     if (!on_attributes) {
       expstring_t temp = memptystr();
       temp = mputprintf(
         temp,
         "The occurrence range (%llu .. %llu) of the element (%s) is not compatible "
         "with the occurrence range (%llu .. %llu) of the referenced element.",
-        minOccurs,
-        maxOccurs,
+        getMinOccurs(),
+        getMaxOccurs(),
         name.originalValueWoPrefix.c_str(),
         other.getMinOccurs(),
         other.getMaxOccurs());
@@ -724,8 +753,8 @@ void ComplexType::applyReference(const SimpleType & other, const bool on_attribu
       TTCN3ModuleInventory::getInstance().incrNumErrors();
     }
   } else {
-    minOccurs = llmax(minOccurs, other.getMinOccurs());
-    maxOccurs = llmin(maxOccurs, other.getMaxOccurs());
+    setMinOccurs(llmax(getMinOccurs(), other.getMinOccurs()));
+    setMaxOccurs(llmin(getMaxOccurs(), other.getMaxOccurs()));
   }
 
   for (List<Mstring>::iterator var = other.getVariantRef().begin(); var; var = var->Next) {
@@ -902,7 +931,7 @@ void ComplexType::setFieldPaths(Mstring path) {
   if (path.empty()) {
     if (!top) {
       Mstring field_prefix = empty_string;
-      if(parent->minOccurs == 0 && parent->maxOccurs == ULLONG_MAX){
+      if(parent->getMinOccurs() == 0 && parent->getMaxOccurs() == ULLONG_MAX){
         field_prefix = "[-].";
       }
       path = field_prefix + getName().convertedValue;
@@ -932,14 +961,14 @@ void ComplexType::finalModification2() {
   SimpleType::finalModification();
 
   //Set isOptional field
-  isOptional = isOptional || (minOccurs == 0 && maxOccurs == 1);
+  isOptional = isOptional || (getMinOccurs() == 0 && getMaxOccurs() == 1);
   
   //
   List<Mstring> enumNames;
   for (List<ComplexType*>::iterator field = complexfields.begin(), nextField; field; field = nextField) {
     nextField = field->Next;
     //Remove invisible fields
-    if ((field->Data->minOccurs == 0 && field->Data->maxOccurs == 0) || !field->Data->isVisible()) {
+    if ((field->Data->getMinOccurs() == 0 && field->Data->getMaxOccurs() == 0) || !field->Data->isVisible()) {
       delete field->Data;
       field->Data = NULL;
       complexfields.remove(field);
@@ -1225,7 +1254,7 @@ void ComplexType::collectVariants(List<Mstring>& container) {
   if (top) {
     bool useUnionVariantWhenMainTypeIsRecordOf = false;
     for (List<Mstring>::iterator var = variant.end(); var; var = var->Prev) {
-      if ((minOccurs != 1 || maxOccurs != 1) && (var->Data == "\"useUnion\"")) { // main type is a record of
+      if ((getMinOccurs() != 1 || getMaxOccurs() != 1) && (var->Data == "\"useUnion\"")) { // main type is a record of
         useUnionVariantWhenMainTypeIsRecordOf = true; // TR HL15893
       } else {
         container.push_back(Mstring("variant ") + Mstring(var->Data.c_str()) + Mstring(";\n"));
@@ -1362,7 +1391,7 @@ void ComplexType::dump(unsigned int depth) const {
   for (List<Mstring>::iterator field = enumfields.begin(); field; field = field->Next) {
     fprintf(stderr, "%*s enum: %s\n", depth * 2 + depth, "", field->Data.c_str());
   }
-  fprintf(stderr, "%*s (%llu .. %llu) | Optional:%s | List:%s\n", (depth + 1) * 2, "", minOccurs, maxOccurs, isOptional ? "true" : "false", name.list_extension ? "true" : "false");
+  fprintf(stderr, "%*s (%llu .. %llu) | Optional:%s | List:%s\n", (depth + 1) * 2, "", getMinOccurs(), getMaxOccurs(), isOptional ? "true" : "false", name.list_extension ? "true" : "false");
   fprintf(stderr, "%*s %d variants: ", (depth + 1) * 2, "", (int) variant.size());
   for (List<Mstring>::iterator var = variant.begin(); var; var = var->Next) {
     fprintf(stderr, "%s, ", var->Data.c_str());
@@ -1376,8 +1405,8 @@ void ComplexType::setMinMaxOccurs(const unsigned long long min, const unsigned l
 
   if (min != 1 || max != 1) {
     if (xsdtype == n_choice) {
-      minOccurs = min;
-      maxOccurs = max;
+      setMinOccurs(min);
+      setMaxOccurs(max);
       addVariant(V_untagged);
       first_child = false;
     } else if (xsdtype == n_sequence) {
@@ -1387,17 +1416,17 @@ void ComplexType::setMinMaxOccurs(const unsigned long long min, const unsigned l
       rec->setXsdtype(n_sequence);
       rec->addVariant(V_untagged);
       rec->addVariant(V_untagged);
-      rec->minOccurs = min;
-      rec->maxOccurs = max;
+      rec->setMinOccurs(min);
+      rec->setMaxOccurs(max);
       complexfields.push_back(rec);
       actfield = rec;
-      if ((rec->minOccurs == 0 && rec->maxOccurs > 1) || rec->minOccurs > 0) {
+      if ((rec->getMinOccurs() == 0 && rec->getMaxOccurs() > 1) || rec->getMinOccurs() > 0) {
         rec->name.list_extension = true;
       }
     } else {
-      minOccurs = min;
-      maxOccurs = max;
-      if ((minOccurs == 0 && maxOccurs > 1) || minOccurs > 0) {
+      setMinOccurs(min);
+      setMaxOccurs(max);
+      if ((getMinOccurs() == 0 && getMaxOccurs() > 1) || getMinOccurs() > 0) {
         if (generate_list_postfix) {
           name.list_extension = true;
         }
@@ -1405,7 +1434,7 @@ void ComplexType::setMinMaxOccurs(const unsigned long long min, const unsigned l
       if (parent != NULL && parent->getXsdtype() == n_choice) {
         name.list_extension = true;
         if ((parent != NULL && parent->getXsdtype() == n_choice)) {
-          if (parent->first_child == false && minOccurs == 0) {
+          if (parent->first_child == false && getMinOccurs() == 0) {
             parent->first_child = true;
             with_union = true;
             first_child = false;
@@ -1418,7 +1447,7 @@ void ComplexType::setMinMaxOccurs(const unsigned long long min, const unsigned l
     }
   }
 
-  if (maxOccurs > 1 && generate_list_postfix) {
+  if (getMaxOccurs() > 1 && generate_list_postfix) {
     name.list_extension = true;
   }
 }
@@ -1664,7 +1693,7 @@ void ComplexType::resolveGroup(SimpleType *st) {
       ct->getModule()->getTargetNamespace() != "NoTargetNamespace") {
       addNameSpaceas = true;
     }
-    if (ct->getXsdtype() == n_sequence && minOccurs == 1 && maxOccurs == 1 && (parent->getXsdtype() == n_complexType || parent->getXsdtype() == n_sequence)) {
+    if (ct->getXsdtype() == n_sequence && getMinOccurs() == 1 && getMaxOccurs() == 1 && (parent->getXsdtype() == n_complexType || parent->getXsdtype() == n_sequence)) {
       for (List<ComplexType*>::iterator c = ct->complexfields.begin(); c; c = c->Next) {
         ComplexType * newField = new ComplexType(*c->Data);
         parent->complexfields.push_back(newField);
@@ -1678,7 +1707,7 @@ void ComplexType::resolveGroup(SimpleType *st) {
       //If the parent optional, then every field is optional
       for (List<ComplexType*>::iterator c = ct->complexfields.begin(); c; c = c->Next) {
         ComplexType* f = new ComplexType(*c->Data);
-        if (minOccurs == 0 && !f->enumerated) {
+        if (getMinOccurs() == 0 && !f->enumerated) {
           f->isOptional = true;
         }
         ((ComplexType*) parent)->complexfields.push_back(f);
@@ -1755,6 +1784,15 @@ void ComplexType::resolveSimpleTypeExtension() {
         st->addToNameDepList(basefield);
         basefield->nameDep = st;
         addNameSpaceAsVariant(basefield, st);
+        const Mstring old_type = basefield->getType().originalValueWoPrefix;
+        basefield->applyReference(*st);
+        // If st has enumeration then the type is restored to the original value
+        // because enumerations cannot be extended here and this way we just
+        // create an alias.
+        if (st->getEnumeration().modified) {
+          basefield->setTypeValue(old_type);
+          basefield->getEnumeration().modified = false;
+        }
       }
     } else if(!isBuiltInType(basefield->getType().convertedValue)){
          printError(module->getSchemaname(), name.convertedValue,
@@ -1832,7 +1870,13 @@ void ComplexType::resolveSimpleTypeRestriction() {
       addNameSpaceAsVariant(this, ct);
     }
     if(!basefield->parent->top){
-      applyReference(*basefield, true);
+      // This is the case of restriction -> list -> simpletype -> restriction
+      // we have to apply the reference to the parent's parent.
+      if(basefield->parent->parent != NULL && !basefield->parent->isVisible()) {
+        basefield->parent->parent->applyReference(*basefield, true);
+      } else {
+        applyReference(*basefield, true);
+      }
       basefield->setInvisible();
     }
   }
@@ -1880,8 +1924,8 @@ void ComplexType::resolveComplexTypeExtension() {
             field->applyReference(*f->Data);
             field->type.upload(ct->getName().convertedValue + Mstring(".") + f->Data->getName().convertedValue);
             field->type.no_replace = true;
-            field->minOccurs = f->Data->minOccurs;
-            field->maxOccurs = f->Data->maxOccurs;
+            field->setMinOccurs(f->Data->getMinOccurs());
+            field->setMaxOccurs(f->Data->getMaxOccurs());
             complexfields.push_front(field);
             setParent(this, field);
           }
@@ -1915,7 +1959,10 @@ void ComplexType::resolveComplexTypeRestriction() {
         List<ComplexType*>::iterator field2 = ct->complexfields.begin();
         for (; field2; field2 = field2->Next) {
           if (field->Data->getName().convertedValue == field2->Data->getName().convertedValue &&
-            field->Data->getType().convertedValue == field2->Data->getType().convertedValue) {
+            field->Data->getType().convertedValue == field2->Data->getType().convertedValue &&
+            field->Data->complexfields.size() <= field2->Data->complexfields.size() &&
+            hasMatchingFields(field->Data->complexfields, field2->Data->complexfields)) {
+            // TODO: better algorithm to find matching fields
             field->Data->applyReference(*field2->Data, false);
             break;
           }
@@ -1926,6 +1973,25 @@ void ComplexType::resolveComplexTypeRestriction() {
       }
     }
   }
+}
+
+bool ComplexType::hasMatchingFields(const List<ComplexType*>& mainList, const List<ComplexType*>& subList) const {
+    List<ComplexType*>::iterator field = mainList.begin();
+    for (; field; field = field->Next){
+      List<ComplexType*>::iterator field2 = subList.begin();
+      bool found = false;
+      for (; field2; field2 = field2->Next) {
+        if(field->Data->getName().convertedValue == field2->Data->getName().convertedValue &&
+          field->Data->getType().convertedValue == field2->Data->getType().convertedValue) {
+            found = true;
+            break;
+        }
+      }
+      if(!found) {
+          return false;
+      }
+    }
+    return true;
 }
 
 void ComplexType::resolveUnion(SimpleType *st) {
@@ -2086,3 +2152,4 @@ Mstring ComplexType::findRoot(const BlockValue block_value, SimpleType* elem, co
     return empty_string;
   }
 }
+

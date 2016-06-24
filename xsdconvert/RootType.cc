@@ -1,10 +1,17 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Delic, Adam
+ *   Raduly, Csaba
+ *   Szabo, Bence Janos
+ *
+ ******************************************************************************/
 #include "RootType.hh"
 
 #include "TTCN3Module.hh"
@@ -14,15 +21,17 @@ RootType::RootType(XMLParser * a_parser, TTCN3Module * a_module, const Construct
 , module(a_module)
 , name()
 , type()
-, minOccurs(1)
-, maxOccurs(1)
 , variant()
 , variant_ref()
 , comment()
 , construct(a_construct)
 , origin(from_unknown)
 , visible(true)
-, nameDepList() {
+, nameDepList()
+, minOccurs(1)
+, maxOccurs(1)
+, min_mod(false)
+, max_mod(false){
   switch (a_construct) {
     case c_schema:
     case c_annotation:

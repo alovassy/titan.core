@@ -1,10 +1,22 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Forstner, Matyas
+ *   Kovacs, Ferenc
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Zalanyi, Balazs Andor
+ *
+ ******************************************************************************/
 #ifndef _Common_ustring_HH
 #define _Common_ustring_HH
 
@@ -57,6 +69,9 @@ public:
 
   /** Constructs a universal string from \a s. */
   ustring(const string& s);
+  
+  /** Constructs a universal string from \a uid which contains \a n chars. */
+  ustring(const char** uid, const int n);
 
   /** Copy constructor */
   ustring(const ustring& s) : val_ptr(s.val_ptr) { val_ptr->ref_count++;}

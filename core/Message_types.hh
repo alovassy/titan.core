@@ -1,10 +1,17 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Forstner, Matyas
+ *   Szabo, Janos Zoltan – initial implementation
+ *
+ ******************************************************************************/
 #ifndef MESSAGE_TYPES_HH
 #define MESSAGE_TYPES_HH
 
@@ -97,6 +104,9 @@
 #define MSG_MAPPED		18
 #define MSG_UNMAP_REQ		19
 #define MSG_UNMAPPED		20
+#define MSG_DEBUG_HALT_REQ	101
+#define MSG_DEBUG_CONTINUE_REQ	102
+#define MSG_DEBUG_BATCH		103
 
 /* Messages from MTC to MC (up) */
 
@@ -109,5 +119,13 @@
 #define MSG_STOPPED		21
 #define MSG_STOPPED_KILLED	22
 #define MSG_KILLED		23
+
+/* Messages from MC to HC or TC (down) */
+
+#define MSG_DEBUG_COMMAND	100
+
+/* Messages from HC or TC to MC (up) */
+
+#define MSG_DEBUG_RETURN_VALUE	100
 
 #endif

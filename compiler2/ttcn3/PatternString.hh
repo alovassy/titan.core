@@ -1,10 +1,21 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Delic, Adam
+ *   Forstner, Matyas
+ *   Raduly, Csaba
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Zalanyi, Balazs Andor
+ *
+ ******************************************************************************/
 #ifndef _Ttcn_PatternString_HH
 #define _Ttcn_PatternString_HH
 
@@ -55,6 +66,7 @@ namespace Ttcn {
     void addChar(char c);
     void addString(const char *p_str);
     void addString(const string& p_str);
+    void addStringUSI(char **usi_str, const size_t size);
     void addRef(Ttcn::Reference *p_ref);
     void addRefdCharSet(Ttcn::Reference *p_ref);
     string get_full_str() const;

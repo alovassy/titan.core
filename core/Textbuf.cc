@@ -1,10 +1,19 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Forstner, Matyas
+ *   Kovacs, Ferenc
+ *   Raduly, Csaba
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Szalai, Gabor
+ *
+ ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h> // for atof
 #include <string.h>
@@ -279,6 +288,18 @@ void Text_Buf::push_raw(int len, const void *data)
                           "length (%d).", len);
   Reallocate(buf_len + len);
   memcpy((char*)data_ptr + buf_begin + buf_len, data, len);
+  buf_len += len;
+}
+
+void Text_Buf::push_raw_front(int len, const void* data)
+{
+  if (len < 0) TTCN_error("Text encoder: Encoding raw data with negative "
+                          "length (%d).", len);
+  Reallocate(buf_len + len);
+  for (int i = buf_len - 1; i >= 0; --i) {
+    ((char*)data_ptr)[buf_begin + len + i] = ((char*)data_ptr)[buf_begin + i];
+  }
+  memcpy((char*)data_ptr + buf_begin, data, len);
   buf_len += len;
 }
 

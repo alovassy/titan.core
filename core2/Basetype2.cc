@@ -1,10 +1,23 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Beres, Szabolcs
+ *   Delic, Adam
+ *   Kovacs, Ferenc
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Pandi, Krisztian
+ *
+ ******************************************************************************/
 #include "Basetype.hh"
 #include "TEXT.hh"
 #include "BER.hh"
@@ -2455,6 +2468,11 @@ void Record_Of_Type::set_param(Module_Param& param) {
         Module_Param* const curr = mp->get_elem(i);
         if (curr->get_type()!=Module_Param::MP_NotUsed) {
           get_at(i)->set_param(*curr);
+          if (!get_at(i)->is_bound()) {
+            // use null pointers for unbound elements
+            delete val_ptr->value_elements[i];
+            val_ptr->value_elements[i] = NULL;
+          }
         }
       }
       break;
@@ -2462,6 +2480,11 @@ void Record_Of_Type::set_param(Module_Param& param) {
       for (size_t i=0; i<mp->get_size(); ++i) {
         Module_Param* const current = mp->get_elem(i);
         get_at(current->get_id()->get_index())->set_param(*current);
+        if (!get_at(current->get_id()->get_index())->is_bound()) {
+          // use null pointers for unbound elements
+          delete val_ptr->value_elements[current->get_id()->get_index()];
+          val_ptr->value_elements[current->get_id()->get_index()] = NULL;
+        }
       }
       break;
     default:
@@ -5283,7 +5306,7 @@ int Record_Type::XER_decode(const XERdescriptor_t& p_td, XmlReaderWrap& reader,
           // that it belongs to him
           get_at(field_cnt-1)->XER_decode(*xer_descr(field_cnt-1), reader, flavor | USE_NIL, flavor2 | USE_NIL_PARENT_TAG, 0);
           already_processed = TRUE;
-          continue;
+          break;
         } // type has USE-NIL
         
         if (parent_tag) {
@@ -5365,8 +5388,9 @@ int Record_Type::XER_decode(const XERdescriptor_t& p_td, XmlReaderWrap& reader,
       }
 
       i = first_nonattr; // finished with attributes
-      // AdvanceAttribute did MoveToElement. Move into the content (if any).
-      if (!reader.IsEmptyElement()) reader.Read();
+      // AdvanceAttribute did MoveToElement. Move into the content (if any),
+      // except when the reader is already moved in(already_processed).
+      if (!reader.IsEmptyElement() && !already_processed) reader.Read();
     } // end if (own_tag)
     
     /* * * * * * * * Non-attributes (elements) * * * * * * * * * * * */
@@ -5992,7 +6016,7 @@ int Record_Type::JSON_decode(const TTCN_Typedescriptor_t& p_td, JSON_Tokenizer& 
     }
   }
   
-  delete metainfo;
+  delete[] metainfo;
   
   return dec_len;
 }

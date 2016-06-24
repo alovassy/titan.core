@@ -1,9 +1,27 @@
 /******************************************************************************
- * Copyright (c) 2000-2015 Ericsson Telecom AB
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Beres, Szabolcs
+ *   Delic, Adam
+ *   Forstner, Matyas
+ *   Gecse, Roland
+ *   Kovacs, Ferenc
+ *   Pandi, Krisztian
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Szalai, Gabor
+ *   Zalanyi, Balazs Andor
+ *
  ******************************************************************************/
 %{
 
@@ -111,6 +129,7 @@ static void yyprint(FILE *file, int type, const YYSTYPE& value);
 %token EmergencyLoggingBehaviour
 %token EmergencyLoggingBehaviourValue "BufferAll or BufferMasked"
 %token EmergencyLoggingMask
+%token EmergencyLoggingForFailVerdict
 %token FileMask
 %token ConsoleMask
 %token TimestampFormat
@@ -126,6 +145,7 @@ static void yyprint(FILE *file, int type, const YYSTYPE& value);
 %token EndControlPart
 %token BeginTestCase
 %token EndTestCase
+
 
 %token <str_val> Identifier
 %token ASN1LowerIdentifier "ASN.1 identifier beginning with a lowercase letter"
@@ -461,6 +481,7 @@ OctetstringValue:
 
 UniversalCharstringValue:
 	Quadruple
+	| USI
 ;
 
 UniversalCharstringFragment:
@@ -471,6 +492,15 @@ UniversalCharstringFragment:
 Quadruple:
 	CharKeyword '(' ParameterExpression ',' ParameterExpression ','
   ParameterExpression ',' ParameterExpression ')'
+;
+
+USI:
+    CharKeyword '(' UIDlike ')'     
+;
+
+UIDlike:
+    Cstring { Free($1); }
+    | UIDlike ',' Cstring { Free($3); }
 ;
 
 StringValue:
@@ -570,6 +600,7 @@ LoggingParam:
 	| EmergencyLogging AssignmentChar Number { BN_free($3); }
 	| EmergencyLoggingBehaviour AssignmentChar EmergencyLoggingBehaviourValue
 	| EmergencyLoggingMask AssignmentChar LoggingBitMask
+	| EmergencyLoggingForFailVerdict AssignmentChar YesNoOrBoolean
 	| LogFileNumber AssignmentChar Number { BN_free($3); }
 	| DiskFullAction AssignmentChar DiskFullActionValue
 	| LogFile AssignmentChar LogFileName { cfg->set_log_file($3); }

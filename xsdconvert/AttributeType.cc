@@ -1,10 +1,15 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Szabo, Bence Janos
+ *
+ ******************************************************************************/
 #include "AttributeType.hh"
 
 AttributeType::AttributeType(ComplexType * a_complexType)
@@ -115,20 +120,20 @@ void AttributeType::applyUseAttribute() {
   }
   switch (useVal) {
     case optional:
-      minOccurs = 0;
-      maxOccurs = 1;
+      setMinOccurs(0);
+      setMaxOccurs(1);
       break;
     case required:
-      minOccurs = 1;
-      maxOccurs = 1;
+      setMinOccurs(1);
+      setMaxOccurs(1);
       break;
     case prohibited:
-      minOccurs = 0;
-      maxOccurs = 0;
+      setMinOccurs(0);
+      setMaxOccurs(0);
       setInvisible();
       break;
   }
-  isOptional = isOptional || (minOccurs == 0 && maxOccurs == 1);
+  isOptional = isOptional || (getMinOccurs() == 0 && getMaxOccurs() == 1);
 }
 
 void AttributeType::applyNamespaceAttribute(VariantMode varLabel) {
@@ -189,8 +194,8 @@ void AttributeType::applyNamespaceAttribute(VariantMode varLabel) {
 }
 
 void AttributeType::applyMinMaxOccursAttribute(unsigned long long min, unsigned long long max) {
-  minOccurs = min;
-  maxOccurs = max;
+  setMinOccurs(min);
+  setMaxOccurs(max);
 }
 
 void AttributeType::dump(unsigned int depth) const {
@@ -198,7 +203,7 @@ void AttributeType::dump(unsigned int depth) const {
     name.originalValueWoPrefix.c_str(), name.convertedValue.c_str(), (const void*) this);
   fprintf(stderr, "%*s %s Type: \n", depth * 2, "", type.convertedValue.c_str());
   fprintf(stderr, "%*s type %s \n", (depth + 1) * 2, "", type.convertedValue.c_str());
-  fprintf(stderr, "%*s (%llu .. %llu)\n", (depth + 1) * 2, "", minOccurs, maxOccurs);
+  fprintf(stderr, "%*s (%llu .. %llu)\n", (depth + 1) * 2, "", getMinOccurs(), getMaxOccurs());
   fprintf(stderr, "%*s %d variants: ", (depth + 1) * 2, "", (int) variant.size());
   for (List<Mstring>::iterator var = variant.begin(); var; var = var->Next) {
     fprintf(stderr, "%s, ", var->Data.c_str());

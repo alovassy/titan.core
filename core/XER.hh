@@ -1,10 +1,17 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Raduly, Csaba
+ *   Szabo, Bence Janos
+ *
+ ******************************************************************************/
 #ifndef XER_HH_
 #define XER_HH_
 
@@ -18,7 +25,7 @@ class XmlReaderWrap;
 class Base_Type;
 #ifdef TITAN_RUNTIME_2
 class Record_Of_Type;
-class Erroneous_descriptor_t;
+struct Erroneous_descriptor_t;
 #else
 namespace PreGenRecordOf {
   class PREGEN__RECORD__OF__UNIVERSAL__CHARSTRING;

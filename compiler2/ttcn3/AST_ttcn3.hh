@@ -1,10 +1,22 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Delic, Adam
+ *   Kovacs, Ferenc
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Zalanyi, Balazs Andor
+ *   Pandi, Krisztian
+ *
+ ******************************************************************************/
 #ifndef _Ttcn_AST_HH
 #define _Ttcn_AST_HH
 
@@ -333,8 +345,9 @@ namespace Ttcn {
      * and the referred objects are bound or not.*/
     void generate_code_ispresentbound(expression_struct_t *expr,
       bool is_template, const bool isbound);
-    /** If the referenced object is a formal parameter, it is marked as used. */
-    void refd_param_usage_found();
+    /** Lets the referenced assignment object know, that the reference is used
+      * at least once (only relevant for formal parameters and external constants). */
+    void ref_usage_found();
   private:
     /** Detects whether the first identifier in subrefs is a module id */
     void detect_modid();
@@ -641,6 +654,23 @@ namespace Ttcn {
       * @param json_refs map of JSON documents containing the references and function
       * info related to each type */
     virtual void generate_json_schema(JSON_Tokenizer& json, map<Type*, JSON_Tokenizer>& json_refs);
+    
+    /** Generates the debugger initialization function for this module.
+      * The function creates the global debug scope associated with this module,
+      * and initializes it with all the global variables visible in the module
+      * (including imported variables).
+      * The debug scopes of all component types defined in the module are also
+      * created and initialized with their variables. */
+    virtual void generate_debugger_init(output_struct *output);
+    
+    /** Generates the variable adding code for all global variables defined
+      * in this module. This function is called by generate_debugger_init()
+      * for both the current module and all imported modules. */
+    virtual char* generate_debugger_global_vars(char* str, Common::Module* current_mod);
+    
+    /** Generates the debugger variable printing function, which can print values
+      * and templates of all types defined in this module (excluding subtypes). */
+    virtual void generate_debugger_functions(output_struct *output);
   };
 
   /**
@@ -936,6 +966,7 @@ namespace Ttcn {
   class Def_ExtConst : public Definition {
   private:
     Type *type;
+    bool usage_found;
 
     /// Copy constructor disabled
     Def_ExtConst(const Def_ExtConst& p);
@@ -952,6 +983,10 @@ namespace Ttcn {
     virtual void generate_code(output_struct *target, bool clean_up = false);
     virtual void generate_code(CodeGenHelper& cgh);
     virtual void dump_internal(unsigned level) const;
+    /** Indicates that the parameter is used at least once. */
+    void set_usage_found() { usage_found = true; }
+    /** Returns true if the external constant is used at least once. */
+    bool is_used() const { return usage_found; }
   };
 
   /**

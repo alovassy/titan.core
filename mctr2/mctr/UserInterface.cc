@@ -1,17 +1,20 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Bene, Tamas
+ *   Lovassy, Arpad
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Vilmos Varga - author
+ *
+ ******************************************************************************/
 //
 // Description:           Implementation file for UserInterface
-// Author:                Vilmos Varga
-// mail:                  ethvva@eth.ericsson.se
-//
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-//
 //----------------------------------------------------------------------------
 #include "UserInterface.h"
 
@@ -29,6 +32,11 @@ UserInterface::~UserInterface()
 void UserInterface::initialize()
 {
 
+}
+
+void UserInterface::executeBatchFile(const char* /* filename */)
+{
+  error(/* severity */ 0, "This user interface does not support batch files.");
 }
 
 //----------------------------------------------------------------------------

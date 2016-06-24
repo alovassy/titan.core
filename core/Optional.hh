@@ -1,10 +1,27 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Beres, Szabolcs
+ *   Delic, Adam
+ *   Forstner, Matyas
+ *   Horvath, Gabriella
+ *   Kovacs, Ferenc
+ *   Ormandi, Matyas
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Szalai, Gabor
+ *
+ ******************************************************************************/
 #ifndef OPTIONAL_HH
 #define OPTIONAL_HH
 
@@ -177,8 +194,8 @@ public:
   template <typename T_tmp>
   inline boolean operator!=(const T_tmp& other_value) const
     { return !is_equal(other_value); }
-#ifdef __SUNPRO_CC
-  /* Note: Without these functions the Sun Workshop Pro C++ compiler reports
+#if defined(__SUNPRO_CC) || defined(__clang__)
+  /* Note: Without these functions the Sun Workshop Pro C++ compiler or clang reports
    * overloading ambiguity when comparing an optional charstring field with an
    * optional universal charstring. */
   template <typename T_tmp>
@@ -743,6 +760,9 @@ void OPTIONAL<T_type>::set_param(Module_Param& param) {
   }
   set_to_present();
   optional_value->set_param(param);
+  if (!optional_value->is_bound()) {
+    clean_up();
+  }
 }
 
 template <typename T_type>

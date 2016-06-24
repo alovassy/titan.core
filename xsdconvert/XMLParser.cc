@@ -1,10 +1,18 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Godar, Marton
+ *   Kovacs, Ferenc
+ *   Raduly, Csaba
+ *   Szabo, Bence Janos
+ *
+ ******************************************************************************/
 #include "XMLParser.hh"
 #include "TTCN3Module.hh"
 #include "SimpleType.hh"
@@ -345,7 +353,15 @@ void XMLParser::endelementHandler(const xmlChar * localname) {
      tag == n_documentation){
     inside_annotation.pop_back();
   }
-
+  
+  if(tag == n_list) {
+      if(module->hasDefinedMainType()) {
+          SimpleType& st = (SimpleType&)(module->getLastMainType());
+          if(st.getXsdtype() == n_NOTSET){
+            st.setMode(SimpleType::restrictionAfterListMode);
+          }
+      }
+  }
 
   --actualDepth;
   if (actualDepth == 0 || actualDepth == 1) {
@@ -828,3 +844,4 @@ void XMLParser::TagAttributes::fillUp(TagAttributeName * att_name_e, Mstring * a
     }
   }
 }
+

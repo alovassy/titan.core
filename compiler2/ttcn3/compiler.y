@@ -1,9 +1,32 @@
 /******************************************************************************
- * Copyright (c) 2000-2015 Ericsson Telecom AB
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Beres, Szabolcs
+ *   Cserveni, Akos
+ *   Delic, Adam
+ *   Dimitrov, Peter
+ *   Feher, Csaba
+ *   Forstner, Matyas
+ *   Gecse, Roland
+ *   Kovacs, Ferenc
+ *   Kremer, Peter
+ *   Pandi, Krisztian
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Szalai, Gabor
+ *   Tatarka, Gabor
+ *   Zalanyi, Balazs Andor
+ *
  ******************************************************************************/
 /* Syntax check parser and compiler for TTCN-3 */
 
@@ -219,6 +242,10 @@ static const string anyname("anytype");
     Statement **elements;
   } stmt_list;
 
+  struct {
+    size_t nElements;
+    const char **elements;
+  } uid_list;
 
   struct {
     Value *lower;
@@ -568,6 +595,7 @@ static const string anyname("anytype");
 %token CharKeyword
 %token CharStringKeyword
 %token CheckOpKeyword
+%token CheckStateKeyword
 %token ClearOpKeyword
 %token ComplementKeyword
 %token ComponentKeyword
@@ -724,6 +752,7 @@ static const string anyname("anytype");
 %token DotCallOpKeyword
 %token DotCatchOpKeyword
 %token DotCheckOpKeyword
+%token DotCheckStateKeyword
 %token DotClearOpKeyword
 %token DotCreateKeyword
 %token DotDoneKeyword
@@ -805,6 +834,10 @@ static const string anyname("anytype");
 %token get_stringencodingKeyWord
 %token encode_base64KeyWord
 %token decode_base64KeyWord
+%token encvalue_unicharKeyWord
+%token decvalue_unicharKeyWord
+%token any2unistrKeyWord
+%token hostidKeyWord
 
 /* Multi-character operators */
 
@@ -832,6 +865,7 @@ static const string anyname("anytype");
   IdentifierOrAddressKeyword StructFieldRef PredefOrIdentifier
 %type <string_val> CstringList
 %type <ustring_val> Quadruple
+%type <uid_list> USI UIDlike
 
 %type <typetype> PredefinedType
 %type <portoperationmode> PortOperationMode
@@ -1383,6 +1417,9 @@ VarInstance
 optArrayDef
 optExtendedFieldReference
 FriendModuleDef
+USI
+UIDlike
+
 
 %destructor {
   delete $$.lower;
@@ -5523,7 +5560,7 @@ DisconnectStatement: // 335
   }
 | DisconnectKeyword SingleOrMultiConnectionSpec
   {
-    if ($2.compref1 && $2.portref1 && $2.compref1 && $2.compref2) {
+    if ($2.portref1 && $2.portref2 && $2.compref1 && $2.compref2) {
       $$ = new Statement(Statement::S_DISCONNECT,
 	$2.compref1, $2.portref1, $2.compref2, $2.portref2);
     } else {
@@ -5772,7 +5809,7 @@ CommunicationStatements: // 353
 | ClearStatement {$$ = $1;}
 | StartStatement {$$ = $1;}
 | StopStatement {$$ = $1;}
-| HaltStatement { $$ = $1; }
+| HaltStatement {$$ = $1;}
 ;
 
 SendStatement: // 354
@@ -6982,6 +7019,15 @@ CharStringValue: // 478
     delete $1;
     $$->set_location(infile, @$);
   }
+| USI
+  {
+    $$ = new Value(Value::V_USTR, new ustring($1.elements, $1.nElements));
+    for(size_t i = 0; i < $1.nElements; ++i) {
+      Free((char*)$1.elements[i]);
+    }
+    Free($1.elements);
+    $$->set_location(infile, @$);
+  }
 ;
 
 CstringList:
@@ -6990,6 +7036,29 @@ CstringList:
     Location loc(infile, @1);
     $$ = parse_charstring_value($1, loc);
     Free($1);
+  }
+;
+
+USI:
+  CharKeyword '(' optError UIDlike optError ')'
+  {
+    $$ = $4;
+  }
+;
+
+UIDlike:
+  Cstring
+  {
+    $$.nElements = 1;
+    $$.elements = (const char**)
+      Realloc($$.elements, ($$.nElements) * sizeof(*$$.elements));
+    $$.elements[$$.nElements-1] = $1;
+  }
+| UIDlike optError ',' optError Cstring {
+    $$.nElements = $1.nElements + 1;
+    $$.elements = (const char**)
+      Realloc($1.elements, ($$.nElements) * sizeof(*$$.elements));
+    $$.elements[$$.nElements-1] = $5;
   }
 ;
 
@@ -8390,6 +8459,18 @@ OpCall: // 611
     $$->set_location(infile, @$);
   }
 | ProfilerRunningOp { $$ = $1; }
+| PortOrAny DotCheckStateKeyword '(' SingleExpression ')'
+  {
+    $$ = new Value(Value::OPTYPE_CHECKSTATE_ANY, $1, $4);
+    $$->set_location(infile, @$);
+  }
+// PortOrAll would cause a conflict 
+| AllKeyword PortKeyword DotCheckStateKeyword '(' SingleExpression ')'
+  {
+    Ttcn::Reference *r = NULL;
+    $$ = new Value(Value::OPTYPE_CHECKSTATE_ALL, r, $5);
+    $$->set_location(infile, @$);
+  }
 ;
 
 PredefinedOps:
@@ -8661,6 +8742,20 @@ PredefinedOps:
     $$ = new Value(Value::OPTYPE_LOG2STR, new LogArguments());
     $$->set_location(infile, @$);
   }
+| any2unistrKeyWord '(' LogItemList optError ')'
+  {
+    if ($3->get_nof_logargs() != 1) {
+      Location loc(infile, @1);
+      loc.error("The any2unistr function takes exactly one argument, not %lu.",
+        (unsigned long)($3->get_nof_logargs()));
+        delete $3;
+        $$ = new Value(Value::OPTYPE_ANY2UNISTR, new LogArguments());
+        $$->set_location(infile, @$);
+    } else {
+      $$ = new Value(Value::OPTYPE_ANY2UNISTR, $3);
+      $$->set_location(infile, @$);
+    }
+  }
 | testcasenameKeyword '(' ')'
   {
     $$ = new Value(Value::OPTYPE_TESTCASENAME);
@@ -8674,6 +8769,54 @@ PredefinedOps:
 | ttcn2stringKeyword '(' error ')'
   {
     $$ = new Value(Value::V_ERROR);
+    $$->set_location(infile, @$);
+  }
+| encvalue_unicharKeyWord '(' optError TemplateInstance optError ',' optError
+  Expression optError ')'
+  {
+    $$ = new Value(Value::OPTYPE_ENCVALUE_UNICHAR, $4, $8);
+    $$->set_location(infile, @$);
+  }
+| encvalue_unicharKeyWord '(' optError TemplateInstance optError ')'
+  {
+    $$ = new Value(Value::OPTYPE_ENCVALUE_UNICHAR, $4);
+    $$->set_location(infile, @$);
+  }
+| encvalue_unicharKeyWord '(' error ')'
+  {
+    Template *t1 = new Template(Template::TEMPLATE_ERROR);
+    t1->set_location(infile, @3);
+    TemplateInstance *ti1 = new TemplateInstance(0, 0, t1);
+    ti1->set_location(infile, @3);
+    $$ = new Value(Value::OPTYPE_ENCVALUE_UNICHAR, ti1);
+    $$->set_location(infile, @$);
+  }
+| decvalue_unicharKeyWord '(' optError DecValueArg optError ',' optError
+  DecValueArg optError ')'
+  {
+    $$ = new Value(Value::OPTYPE_DECVALUE_UNICHAR, $4, $8);
+    $$->set_location(infile, @$);
+  }
+| decvalue_unicharKeyWord '(' optError DecValueArg optError ',' optError
+  DecValueArg optError ',' optError Expression optError ')'
+  {
+    $$ = new Value(Value::OPTYPE_DECVALUE_UNICHAR, $4, $8, $12);
+    $$->set_location(infile, @$);
+  }
+| decvalue_unicharKeyWord '(' error ')'
+  {
+    $$ = new Value(Value::V_ERROR);
+    $$->set_location(infile, @$);
+  }
+| hostidKeyWord '(' ')'
+  {
+    Value *null_value = NULL;
+    $$ = new Value(Value::OPTYPE_HOSTID, null_value);
+    $$->set_location(infile, @$);
+  }
+| hostidKeyWord '(' optError Expression optError ')'
+  {
+    $$ = new Value(Value::OPTYPE_HOSTID, $4);
     $$->set_location(infile, @$);
   }
 ;

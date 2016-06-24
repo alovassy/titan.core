@@ -1,9 +1,26 @@
 /******************************************************************************
- * Copyright (c) 2000-2015 Ericsson Telecom AB
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Cserveni, Akos
+ *   Delic, Adam
+ *   Feher, Csaba
+ *   Forstner, Matyas
+ *   Kovacs, Ferenc
+ *   Kremer, Peter
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Zalanyi, Balazs Andor
+ *
  ******************************************************************************/
 %option noyywrap
 %option never-interactive
@@ -176,10 +193,13 @@ NEWLINE \r|\n|\r\n
 
 LINEMARKER {NUMBER}{WHITESPACE}+\"([^\\\"\r\n]|\\[^\r\n])*\"
 
+UID [uU][+]?[0-9A-Fa-f]{1,8}
+
 TITAN "$#&&&(#TITANERRONEOUS$#&&^#% "
 
 %x SC_blockcomment SC_cstring
 %x SC_binstring SC_binstring_bad
+%s SC_charkeyword
 
 %%
   /* local variables of yylex() */
@@ -358,8 +378,9 @@ break		RETURN(BreakKeyword);
 call		RETURN_DOT(CallOpKeyword);
 case		RETURN(CaseKeyword);
 catch		RETURN_DOT(CatchOpKeyword);
-char		RETURN(CharKeyword);
+char		{ BEGIN(SC_charkeyword); RETURN(CharKeyword); }
 charstring	RETURN(CharStringKeyword);
+checkstate      RETURN_DOT(CheckStateKeyword);
 check		RETURN_DOT(CheckOpKeyword);
 clear		RETURN_DOT(ClearOpKeyword);
 complement	RETURN(ComplementKeyword);
@@ -565,6 +586,10 @@ remove_bom	RETURN(remove_bomKeyWord);
 get_stringencoding	RETURN(get_stringencodingKeyWord);
 encode_base64	RETURN(encode_base64KeyWord);
 decode_base64	RETURN(decode_base64KeyWord);
+encvalue_unichar RETURN(encvalue_unicharKeyWord);
+decvalue_unichar RETURN(decvalue_unicharKeyWord);
+any2unistr      RETURN(any2unistrKeyWord);
+hostid          RETURN(hostidKeyWord);
 
 	/* Values */
 
@@ -605,6 +630,18 @@ NULL RETURN(NullValue);
   current_column++;
   MD5_Update(&md5_ctx, yytext, yyleng);
   BEGIN(SC_cstring);
+}  
+
+<SC_charkeyword>
+{  
+  {UID} {
+    yylval.str = mcopystrn(yytext, yyleng);
+    RETURN_LVAL(Cstring);
+  }
+
+  [,] { RETURN(*yytext); }
+
+  [)] { BEGIN(INITIAL); RETURN(*yytext); }
 }
 
 <SC_binstring> /* -------- SC_binstring scope -------------- */

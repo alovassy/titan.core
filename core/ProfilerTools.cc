@@ -1,10 +1,15 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *
+ ******************************************************************************/
 
 #include "ProfilerTools.hh"
 #include "JSON_Tokenizer.hh"
@@ -130,36 +135,19 @@ namespace Profiler_Tools {
     return; \
   }
   
-  void import_data(profiler_db_t& p_db, const char* p_filename, boolean p_wait,
+  void import_data(profiler_db_t& p_db, const char* p_filename,
                    void (*p_error_function)(const char*, ...))
   {
     // open the file, if it exists
-    int file_size = 0;
     FILE* file = fopen(p_filename, "r");
-    if (NULL != file) {
-      // get the file size
-      fseek(file, 0, SEEK_END);
-      file_size = ftell(file);
+    if (NULL == file) {
+      p_error_function("Profiler database file '%s' does not exist.", p_filename);
+      return;
     }
-    while (0 == file_size) {
-      if (!p_wait) {
-        return;
-      }
-      // keep reading until the file appears (and is not empty)
-      if (NULL != file) {
-        fclose(file);
-      }
-      usleep(1000);
-      file = fopen(p_filename, "r");
-      if (NULL != file) {
-        // refresh the file size
-        fseek(file, 0, SEEK_END);
-        file_size = ftell(file);
-      }
-    }
-
-    // rewind the file (the file pointer has been moved to the end of the file to
-    // calculate its size)
+    
+    // get the file size
+    fseek(file, 0, SEEK_END);
+    int file_size = ftell(file);
     rewind(file);
 
     // read the entire file into a character buffer
@@ -909,7 +897,7 @@ namespace Profiler_Tools {
       // number of lines and functions
       if (p_flags & STATS_NUMBER_OF_LINES) {
         line_func_count_str = mputprintf(line_func_count_str, "%s:\t%lu lines,\t%lu functions\n",
-           p_db[i].filename, p_db[i].lines.size(), p_db[i].functions.size());
+           p_db[i].filename, (unsigned long)(p_db[i].lines.size()), (unsigned long)(p_db[i].functions.size()));
       }
       total_code_lines += p_db[i].lines.size();
       total_functions += p_db[i].functions.size();
@@ -917,7 +905,7 @@ namespace Profiler_Tools {
     if (p_flags & STATS_NUMBER_OF_LINES) {
       line_func_count_str = mputprintf(line_func_count_str,
         "--------------------------------------\n"
-        "Total:\t%lu lines,\t%lu functions\n", total_code_lines, total_functions);
+        "Total:\t%lu lines,\t%lu functions\n", (unsigned long)total_code_lines, (unsigned long)total_functions);
     }
 
     if (p_flags & (STATS_TOP10_ALL_DATA | STATS_ALL_DATA_SORTED)) {

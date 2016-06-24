@@ -1,10 +1,14 @@
 #!/usr/bin/perl -w
 ###############################################################################
-# Copyright (c) 2000-2015 Ericsson Telecom AB
+# Copyright (c) 2000-2016 Ericsson Telecom AB
 # All rights reserved. This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v1.0
 # which accompanies this distribution, and is available at
 # http://www.eclipse.org/legal/epl-v10.html
+#
+# Contributors:
+#   Balasko, Jeno
+#
 ###############################################################################
 
 use strict;
@@ -91,7 +95,7 @@ system("ln -s @symlinkfiles ./");
 map { s!.+/!!g } @files;
 
 # Generate the makefile
-print("$ENV{TTCN3_DIR}/bin/ttcn3_makefilegen -gs $split $rt2 -e XmlTest @files");
+print("$ENV{TTCN3_DIR}/bin/ttcn3_makefilegen -gs $split $rt2 -e XmlTest @files\n");
 
 system(   "\$TTCN3_DIR/bin/ttcn3_makefilegen -gs $split $rt2 -e XmlTest -o Makefile.1 @files");
 
@@ -126,7 +130,8 @@ while (<MAKEFILE_IN>) {
     print MAKEFILE_OUT <<MKF;
 TOPDIR := ../../..
 include   ../../../Makefile.regression
-export PATH:=\$(TTCN3_DIR)/bin:\$(PATH)
+export PATH+=:\$(TTCN3_DIR)/bin:
+export LD_LIBRARY_PATH+=:\$(ABS_SRC):\$(TTCN3_DIR)/lib:
 MKF
   }
 }

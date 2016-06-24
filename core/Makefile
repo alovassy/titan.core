@@ -1,10 +1,29 @@
-###############################################################################
-# Copyright (c) 2000-2015 Ericsson Telecom AB
+##############################################################################
+# Copyright (c) 2000-2016 Ericsson Telecom AB
 # All rights reserved. This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v1.0
 # which accompanies this distribution, and is available at
 # http://www.eclipse.org/legal/epl-v10.html
-###############################################################################
+#
+# Contributors:
+#   
+#   Baji, Laszlo
+#   Balasko, Jeno
+#   Baranyi, Botond
+#   Beres, Szabolcs
+#   Delic, Adam
+#   Feher, Csaba
+#   Forstner, Matyas
+#   Horvath, Gabriella
+#   Koppany, Csaba
+#   Kovacs, Ferenc
+#   Raduly, Csaba
+#   Szabados, Kristof
+#   Szabo, Janos Zoltan – initial implementation
+#   Szalai, Gabor
+#   Zalanyi, Balazs Andor
+#
+##############################################################################
 # Makefile for the Base Library of TTCN-3 Test Executor
 TOP := ..
 include $(TOP)/Makefile.cfg
@@ -62,6 +81,15 @@ LINUX_LIBS     := -lxml2
 FREEBSD_LIBS   := -lxml2
 WIN32_LIBS     := -lxml2
 INTERIX_LIBS   := -lxml2
+	
+ifeq ($(ADVANCED_DEBUGGER_UI), yes)
+  SOLARIS_LIBS   += -lcurses
+  SOLARIS8_LIBS  += -lcurses
+  LINUX_LIBS     += -lncurses
+  FREEBSD_LIBS   += -lncurses
+  WIN32_LIBS     += -lncurses
+  INTERIX_LIBS   += -lncurses
+endif
 
 ifeq ($(USAGE_STATS), yes)
   SOLARIS_LIBS  += -lresolv
@@ -85,7 +113,8 @@ Module_list.cc Objid.cc Octetstring.cc Parallel_main.cc Port.cc RAW.cc \
 Runtime.cc Single_main.cc Snapshot.cc Struct_of.cc Template.cc TEXT.cc \
 Textbuf.cc Timer.cc Param_Types.cc Universal_charstring.cc \
 Verdicttype.cc XER.cc XmlReader.cc TitanLoggerControlImpl.cc TCov.cc JSON.cc \
-Profiler.cc ProfilerTools.cc ProfMerge_main.cc $(RT2_SOURCES)
+Profiler.cc ProfilerTools.cc ProfMerge_main.cc Debugger.cc DebuggerUI.cc \
+$(RT2_SOURCES)
 
 # Keep GENERATED_SOURCES at the beginning. This may speed up parallel builds
 # by starting early the compilation of the largest files.
@@ -150,8 +179,15 @@ ifeq ($(USAGE_STATS), yes)
   COMMON_OBJECTS += ../common/usage_stats.o
 endif
 
+ifeq ($(ADVANCED_DEBUGGER_UI), yes)
+EDITLINE_OBJECTS := $(addprefix ../mctr2/editline/build/src/.libs/, chared.o common.o \
+emacs.o fgetln.o help.o history.o map.o prompt.o read.o search.o strlcat.o term.o tty.o \
+vi.o wcsdup.o chartype.o el.o fcns.o filecomplete.o hist.o key.o parse.o readline.o \
+refresh.o sig.o strlcpy.o tokenizer.o unvis.o vis.o)
+endif
+
 LIBRARY_OBJECTS_NOMAIN := $(filter-out Single_main.o Parallel_main.o ProfMerge_main.o, \
-  $(OBJECTS)) $(COMMON_OBJECTS)
+  $(OBJECTS)) $(COMMON_OBJECTS) $(EDITLINE_OBJECTS)
 
 TOBECLEANED := LoggerPlugin_static.o LoggerPlugin_dynamic.o ProfilerTools.profmerge.o
 
@@ -167,7 +203,8 @@ Port.hh Event_Handler.hh Struct_of.hh Array.hh Optional.hh Textbuf.hh Encdec.hh 
 Module_list.hh Parameters.h Addfunc.hh RAW.hh BER.hh TEXT.hh ASN_Null.hh \
 ASN_Any.hh ASN_External.hh ASN_EmbeddedPDV.hh ASN_CharacterString.hh XER.hh \
 XmlReader.hh cversion.h TitanLoggerControl.ttcn TitanLoggerApi.xsd Vector.hh \
-JSON.hh Profiler.hh RefdIndex.hh ProfilerTools.hh
+JSON.hh Profiler.hh RefdIndex.hh ProfilerTools.hh Debugger.hh DebugCommands.hh \
+DebuggerUI.hh
 # Copied during "make install"
 
 ifdef REGEX_DIR

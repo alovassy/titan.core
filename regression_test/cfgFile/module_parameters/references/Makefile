@@ -1,14 +1,19 @@
-###############################################################################
-# Copyright (c) 2000-2015 Ericsson Telecom AB
+##############################################################################
+# Copyright (c) 2000-2016 Ericsson Telecom AB
 # All rights reserved. This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v1.0
 # which accompanies this distribution, and is available at
 # http://www.eclipse.org/legal/epl-v10.html
-###############################################################################
+#
+# Contributors:
+#   Balasko, Jeno
+#   Baranyi, Botond
+#
+##############################################################################
 TOPDIR := ../../../
 include   $(TOPDIR)/Makefile.regression
 
-FILES := references.ttcn references.cfg
+FILES := references.ttcn A.asn references.cfg
 RUNNABLE := references
 CFG := references.cfg
 DIR_SINGLE := dir_single_mode
@@ -18,6 +23,14 @@ GENERATED_DIRS := $(DIR_SINGLE) $(DIR_PARALLEL)
 COVERAGE_FLAG := 
 ifeq ($(COVERAGE), yes)
   COVERAGE_FLAG += -C
+endif
+
+ifdef DYN
+ifeq ($(PLATFORM), WIN32)
+  export PATH+=:$(TTCN3_DIR)/lib:$(ABS_SRC)/$(DIR_SINGLE):$(ABS_SRC)/$(DIR_PARALLEL):
+else
+  export LD_LIBRARY_PATH+=:$(ABS_SRC)/$(DIR_SINGLE):$(ABS_SRC)/$(DIR_PARALLEL):
+endif 
 endif
 
 MAKE_PROG := $(MAKE)

@@ -1,10 +1,19 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Kovacs, Ferenc
+ *   Raduly, Csaba
+ *   Zalanyi, Balazs Andor
+ *
+ ******************************************************************************/
 #include "PredefFunc.hh"
 #include "error.h"
 #include "Int.hh"
@@ -742,7 +751,7 @@ string* remove_bom(const string& encoded_value)
 {
   size_t length = encoded_value.size();
   if (0 == length) return new string();
-  if (length % 2 || 0 > length) {
+  if (length % 2) {
     ERROR("remove_bom(): Wrong string. The number of nibbles (%d) in string "
                 "shall be divisible by 2", static_cast<int>(length));
     return new string(encoded_value);
@@ -810,7 +819,7 @@ string* get_stringencoding(const string& encoded_value)
 {
   size_t length = encoded_value.size();
   if (0 == length) return new string("<unknown>");
-  if (length % 2 || 0 > length) {
+  if (length % 2) {
     ERROR("get_stringencoding(): Wrong string. The number of nibbles (%d) in string "
                 "shall be divisible by 2", static_cast<int>(length));
     return new string("<unknown>");

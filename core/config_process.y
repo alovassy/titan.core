@@ -1,9 +1,27 @@
 /******************************************************************************
- * Copyright (c) 2000-2015 Ericsson Telecom AB
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Beres, Szabolcs
+ *   Delic, Adam
+ *   Forstner, Matyas
+ *   Kovacs, Ferenc
+ *   Pandi, Krisztian
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Szalai, Gabor
+ *   Zalanyi, Balazs Andor
+ *
  ******************************************************************************/
 %{
 
@@ -38,6 +56,8 @@
 #include "LoggingParam.hh"
 
 #include "Profiler.hh"
+#include "Debugger.hh"
+#include "DebugCommands.hh"
 
 #define YYERROR_VERBOSE
 
@@ -53,7 +73,7 @@ static void check_duplicate_option(const char *section_name,
     const char *option_name, boolean& option_flag);
 static void check_ignored_section(const char *section_name);
 static void set_param(Module_Param& module_param);
-static unsigned char char_to_hexdigit(char c);
+static unsigned char char_to_hexdigit_(char c);
 
 static boolean error_flag = FALSE;
 
@@ -126,6 +146,10 @@ string_map_t *config_defines;
   logging_plugin_t *logging_plugins;
 	logging_param_t logging_params;
 	logging_setting_t logging_param_line;
+  struct {
+    size_t nElements;
+    const char **elements;
+  } uid_list;
 }
 
 %token ModuleParametersKeyword
@@ -165,6 +189,7 @@ string_map_t *config_defines;
 %token EmergencyLogging
 %token EmergencyLoggingBehaviour
 %token EmergencyLoggingMask
+%token EmergencyLoggingForFailVerdict
 %token BufferAll
 %token BufferMasked
 %token FileMask
@@ -192,6 +217,7 @@ string_map_t *config_defines;
 %token <str_val> HstringMatch "hex string template"
 %token <str_val> OstringMatch "octet string template"
 %token <charstring_val> Cstring MPCstring "charstring value"
+%token <str_val> UIDval
 %token DNSName "hostname"
 /* a single bit */
 %token <logseverity_val> LoggingBit
@@ -238,6 +264,7 @@ string_map_t *config_defines;
 
 %type <universal_charstring_val> UniversalCharstringValue UniversalCharstringFragment
 %type <universal_char_val> Quadruple
+%type <uid_list> USI UIDlike
 
 %type <str_val> LoggerPluginId
 %type <logging_plugins> LoggerPlugin LoggerPluginList
@@ -372,7 +399,7 @@ all modules in the next module parameter (reduce).
 GrammarRoot:
   ConfigFile
   {
-    if (Ttcn_String_Parsing::happening()) {
+    if (Ttcn_String_Parsing::happening() || Debugger_Value_Parsing::happening()) {
       config_process_error("Config file cannot be parsed as ttcn string");
     }
   }
@@ -667,7 +694,7 @@ SimpleParameterValue:
     for (int i=0; i<n_chars; i++) {
       if ($1[i]=='?') chars_ptr[i] = 16;
       else if ($1[i]=='*') chars_ptr[i] = 17;
-      else chars_ptr[i] = char_to_hexdigit($1[i]);
+      else chars_ptr[i] = char_to_hexdigit_($1[i]);
     }
     Free($1);
     $$ = new Module_Param_Hexstring_Template(n_chars, chars_ptr);
@@ -682,11 +709,11 @@ SimpleParameterValue:
       else if ($1[i]=='*') num = 257;
       else {
         // first digit
-        num = 16 * char_to_hexdigit($1[i]);
+        num = 16 * char_to_hexdigit_($1[i]);
         i++;
         if (i>=str_len) config_process_error("Unexpected end of octetstring pattern");
         // second digit
-        num += char_to_hexdigit($1[i]);
+        num += char_to_hexdigit_($1[i]);
       }
       octet_vec.push_back(num);
     }
@@ -900,6 +927,31 @@ UniversalCharstringValue:
 	$$.uchars_ptr = (universal_char*)Malloc(sizeof(universal_char));
 	$$.uchars_ptr[0] = $1;
 }
+  | USI
+{
+  $$.n_uchars = $1.nElements;
+  $$.uchars_ptr = (universal_char*)Malloc($$.n_uchars * sizeof(universal_char));
+  for (int i = 0; i < $$.n_uchars; ++i) {
+    size_t offset = 1; //Always starts with u or U
+    offset = $1.elements[i][1] == '+' ? offset + 1 : offset; //Optional '+'
+
+    char* p;
+    unsigned long int_val = strtoul($1.elements[i] + offset, &p, 16);
+    if(*p != 0) {
+      //Error, should not happen
+      config_process_error_f("Invalid hexadecimal string %s.", $1.elements[i] + offset);
+    }
+    
+    //Fill in the quadruple
+    $$.uchars_ptr[i].uc_group = (int_val >> 24) & 0xFF;
+    $$.uchars_ptr[i].uc_plane = (int_val >> 16) & 0xFF;
+    $$.uchars_ptr[i].uc_row   = (int_val >> 8) & 0xFF;
+    $$.uchars_ptr[i].uc_cell  = int_val & 0xFF;
+
+    Free((char*)$1.elements[i]);
+  }
+  Free($1.elements);
+}
 ;
 
 UniversalCharstringFragment:
@@ -978,6 +1030,29 @@ Quadruple:
   delete $7;
   delete $9;
 }
+;
+
+USI:
+  CharKeyword '(' UIDlike ')'
+  {
+    $$ = $3;
+  }
+;
+
+UIDlike:
+  UIDval
+  {
+    $$.nElements = 1;
+    $$.elements = (const char**)
+      Malloc($$.nElements * sizeof(*$$.elements));
+    $$.elements[$$.nElements-1] = $1;
+  }
+| UIDlike ',' UIDval {
+    $$.nElements = $1.nElements + 1;
+    $$.elements = (const char**)
+      Realloc($1.elements, ($$.nElements) * sizeof(*$1.elements));
+    $$.elements[$$.nElements-1] = $3;
+  }
 ;
 
 // character strings outside of the [MODULE_PARAMETERS] section
@@ -1342,6 +1417,11 @@ LoggingParam:
   {
     $$.log_param_selection = LP_EMERGENCYMASK;
     $$.logoptions_val = $3;
+  }
+  | EmergencyLoggingForFailVerdict AssignmentChar YesNoOrBoolean
+  {
+    $$.log_param_selection = LP_EMERGENCYFORFAIL;
+    $$.bool_val = $3;
   }
   | LogFileNumber AssignmentChar Number
   {
@@ -2089,6 +2169,59 @@ Module_Param* process_config_string2ttcn(const char* mp_str, bool is_component)
   }
 }
 
+Module_Param* process_config_debugger_value(const char* mp_str)
+{
+  if (parsed_module_param != NULL || parsing_error_messages != NULL) {
+    ttcn3_debugger.print(DRET_NOTIFICATION,
+      "Internal error: previously parsed TTCN string was not cleared.");
+    return NULL;
+  }
+  // add the hidden keyword
+  std::string mp_string = std::string("$#&&&(#TTCNSTRINGPARSING$#&&^#% ") + mp_str;
+  struct yy_buffer_state *flex_buffer = config_process__scan_bytes(mp_string.c_str(), (int)mp_string.size());
+  if (flex_buffer == NULL) {
+    ttcn3_debugger.print(DRET_NOTIFICATION, "Internal error: flex buffer creation failed.");
+    return NULL;
+  }
+  reset_config_process_lex(NULL);
+  error_flag = FALSE;
+  try {
+    Debugger_Value_Parsing debugger_value_parsing;
+    if (config_process_parse()) {
+      error_flag = TRUE;
+    }
+  }
+  catch (const TC_Error& TC_error) {
+    if (parsed_module_param != NULL) {
+      delete parsed_module_param;
+      parsed_module_param = NULL;
+    }
+    error_flag = TRUE;
+  }
+  config_process_close();
+  config_process_lex_destroy();
+
+  if (error_flag || parsing_error_messages != NULL) {
+    delete parsed_module_param;
+    parsed_module_param = NULL;
+    char* pem = parsing_error_messages != NULL ? parsing_error_messages :
+      mcopystr("Unknown parsing error");
+    parsing_error_messages = NULL;
+    ttcn3_debugger.print(DRET_NOTIFICATION, "%s", pem);
+    Free(pem);
+    return NULL;
+  }
+  else {
+    if (parsed_module_param == NULL) {
+      ttcn3_debugger.print(DRET_NOTIFICATION, "Internal error: could not parse TTCN string.");
+      return NULL;
+    }
+    Module_Param* ret_val = parsed_module_param;
+    parsed_module_param = NULL;
+    return ret_val;
+  }
+}
+
 boolean process_config_string(const char *config_string, int string_len)
 {
   error_flag = FALSE;
@@ -2103,7 +2236,8 @@ boolean process_config_string(const char *config_string, int string_len)
 
   try {
     reset_configuration_options();
-    reset_config_process_lex(NULL);
+    reset_config_process_lex(NULL); 
+
     if (config_process_parse()) error_flag = TRUE;
 
   } catch (const TC_Error& TC_error) {
@@ -2166,14 +2300,20 @@ boolean process_config_file(const char *file_name)
 
 void config_process_error_f(const char *error_str, ...)
 {
-  if (Ttcn_String_Parsing::happening()) {
+  if (Ttcn_String_Parsing::happening() || Debugger_Value_Parsing::happening()) {
     va_list p_var;
     va_start(p_var, error_str);
     char* error_msg_str = mprintf_va_list(error_str, p_var);
     va_end(p_var);
     if (parsing_error_messages!=NULL) parsing_error_messages = mputc(parsing_error_messages, '\n');
-    parsing_error_messages = mputprintf(parsing_error_messages,
-      "Parse error in line %d, at or before token `%s': %s", config_process_get_current_line(), config_process_text, error_msg_str);
+    if (Debugger_Value_Parsing::happening()) {
+      parsing_error_messages = mputprintf(parsing_error_messages,
+        "Parse error at or before token `%s': %s", config_process_text, error_msg_str);
+    }
+    else { // Ttcn_String_Parsing::happening()
+      parsing_error_messages = mputprintf(parsing_error_messages,
+        "Parse error in line %d, at or before token `%s': %s", config_process_get_current_line(), config_process_text, error_msg_str);
+    }
     Free(error_msg_str);
     error_flag = TRUE;
     return;
@@ -2255,13 +2395,13 @@ static void set_param(Module_Param& param)
   }
 }
 
-unsigned char char_to_hexdigit(char c)
+unsigned char char_to_hexdigit_(char c)
 {
   if (c >= '0' && c <= '9') return c - '0';
   else if (c >= 'A' && c <= 'F') return c - 'A' + 10;
   else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
   else {
-    config_process_error_f("char_to_hexdigit(): invalid argument: %c", c);
+    config_process_error_f("char_to_hexdigit_(): invalid argument: %c", c);
     return 0; // to avoid warning
   }
 }

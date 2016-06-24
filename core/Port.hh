@@ -1,10 +1,22 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Feher, Csaba
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Bence Janos
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Tatarka, Gabor
+ *
+ ******************************************************************************/
 #ifndef PORT_HH
 #define PORT_HH
 
@@ -19,6 +31,7 @@ class COMPONENT;
 class COMPONENT_template;
 class Text_Buf;
 class OCTETSTRING;
+class CHARSTRING;
 
 extern const COMPONENT_template& any_compref;
 
@@ -115,6 +128,10 @@ public:
   static void all_stop();
   void halt();
   static void all_halt();
+  
+  bool check_port_state(const CHARSTRING& type) const;
+  static bool any_check_port_state(const CHARSTRING& type);
+  static bool all_check_port_state(const CHARSTRING& type);
 
   virtual alt_status receive(const COMPONENT_template& sender_template =
     any_compref, COMPONENT *sender_ptr = NULL);

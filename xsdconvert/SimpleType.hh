@@ -1,10 +1,19 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   >
+ *   Balasko, Jeno
+ *   Beres, Szabolcs
+ *   Godar, Marton
+ *   Raduly, Csaba
+ *   Szabo, Bence Janos
+ *
+ ******************************************************************************/
 #ifndef SIMPLETYPE_H_
 #define SIMPLETYPE_H_
 
@@ -191,7 +200,8 @@ public:
     noMode,
     restrictionMode,
     extensionMode,
-    listMode
+    listMode,
+    restrictionAfterListMode
   };
 
 protected:
@@ -226,6 +236,12 @@ protected:
   //To determine if already added to type substitution
   bool addedToTypeSubstitution;
   BlockValue block;
+  
+  //Special use: true if an element of a complexType is restricted to a list
+  // in a simpleType, or a simpleType is a restriction of a list, which is a 
+  // restriction of a simpleType
+  bool inList;
+  // We are inside a list if inList is true and mode == listMode
   
   //Element substitution
   void addToSubstitutions();
@@ -361,6 +377,10 @@ public:
       return block;
   }
   
+  void setList(const bool value) {
+      inList = value;
+  }
+  
   void addToNameDepList(SimpleType * t) {
       //If the type has a substitution, we add the namedep to the substitution
       if(subsGroup != NULL && this != (SimpleType*)subsGroup){
@@ -377,3 +397,4 @@ public:
 };
 
 #endif /* SIMPLETYPE_H_ */
+

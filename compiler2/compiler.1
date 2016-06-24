@@ -3,7 +3,7 @@
 compiler \- TTCN-3 and ASN.1 to C++ translator
 .SH SYNOPSIS
 .B compiler
-.RB "[\| " \-abcdEfgijlLMpqrRsStuwxXyY " \|]"
+.RB "[\| " \-abcdEfgijlLMnpqrRsStuwxXyY " \|]"
 .RB "[\| " \-V
 .IR " verb_level" " \|]"
 .RB "[\| " \-K
@@ -68,6 +68,12 @@ in ASN.1 files
 Disables the generation of
 .I BER
 encoder/decoder routines for all ASN.1 types.
+.TP
+.B \-B
+Allows the selected field in a union value to be unbound, when setting module
+parameters (legacy behavior). A warning is displayed whenever a union value
+receives an unbound selected field and when a union with an unbound selected field
+is copied.
 .TP
 .B \-c
 Write out
@@ -160,6 +166,9 @@ attribute can still be used for matching omitted fields). This also affects the
 operation and the
 .B present
 template restriction accordingly.
+.TP
+.B \-n
+Activates the debugger and generates extra code for storing debug information.
 .TP
 .BI \-o " dir"
 The output files (including Test Port skeletons) will be placed into
@@ -405,7 +414,7 @@ ITU-T Recommendations X.680-683:
 .SH AUTHOR
 This manpage is written by Janos Zoltan Szabo, Ericsson Telecom AB
 .br
-Copyright (c) 2000-2015 Ericsson Telecom AB
+Copyright (c) 2000-2016 Ericsson Telecom AB
 .br
 All rights reserved. This program and the accompanying materials
 are made available under the terms of the Eclipse Public License v1.0

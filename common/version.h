@@ -1,17 +1,30 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Beres, Szabolcs
+ *   Delic, Adam
+ *   Kovacs, Ferenc
+ *   Pandi, Krisztian
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Szabo, Janos Zoltan – initial implementation
+ *   Szalai, Gabor
+ *
+ ******************************************************************************/
 #ifndef VERSION_H
 #define VERSION_H
 
 /* Version numbers */
 #define TTCN3_MAJOR 5
-#define TTCN3_MINOR 4
-#define TTCN3_PATCHLEVEL 3
+#define TTCN3_MINOR 5
+#define TTCN3_PATCHLEVEL 0
 //#define TTCN3_BUILDNUMBER 0
 
 /* The aggregated version number must be set manually since some stupid
@@ -22,7 +35,7 @@
  * TTCN3_VERSION = TTCN3_MAJOR * 1000000 + TTCN3_MINOR * 10000 +
  *                 TTCN3_PATCHLEVEL * 100 + TTCN3_BUILDNUMBER
  */
-#define TTCN3_VERSION 50403
+#define TTCN3_VERSION 50500
 
 /* A monotonically increasing version number.
  * An official release is deemed to have the highest possible build number (99)

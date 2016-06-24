@@ -1,10 +1,20 @@
-///////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2000-2015 Ericsson Telecom AB
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
-///////////////////////////////////////////////////////////////////////////////
+/******************************************************************************
+ * Copyright (c) 2000-2016 Ericsson Telecom AB
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *   Baji, Laszlo
+ *   Balasko, Jeno
+ *   Baranyi, Botond
+ *   Delic, Adam
+ *   Raduly, Csaba
+ *   Szabados, Kristof
+ *   Pandi, Krisztian
+ *
+ ******************************************************************************/
 #include "../common/dbgnew.hh"
 #include "Type.hh"
 #include "CompField.hh"
@@ -2462,10 +2472,10 @@ void Type::generate_code_ispresentbound(expression_struct *expr,
         const string& tmp_id = module->get_temporary_id();
         const char *tmp_id_str = tmp_id.c_str();
         expr->expr = mputprintf(expr->expr,
-          "const %s%s& %s = %s.%s();\n",
+          "const %s%s& %s = %s.%s%s();\n",
           next_t->get_genname_value(module).c_str(),
           is_template?"_template":"", tmp_id_str, tmp_generalid_str,
-          id.get_name().c_str());
+          t->typetype == T_ANYTYPE ? "AT_" : "", id.get_name().c_str());
 
         expr->expr = mputprintf(expr->expr,
           "%s = %s.%s(%s);\n", global_id.c_str(),
@@ -3027,7 +3037,7 @@ void Type::generate_json_schema_array(JSON_Tokenizer& json)
       "\"record of\"" : "\"set of\"");
   } else {
     // set the number of elements for arrays
-    char* size_str = mprintf("%lu", get_nof_comps());
+    char* size_str = mprintf("%lu", (unsigned long)(get_nof_comps()));
     json.put_next_token(JSON_TOKEN_NAME, "minItems");
     json.put_next_token(JSON_TOKEN_NUMBER, size_str);
     json.put_next_token(JSON_TOKEN_NAME, "maxItems");
